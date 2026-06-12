@@ -91,10 +91,12 @@
 
     /* ── Album list ── */
     .album-list { padding: 8px 0 120px; }
-    .album-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 0; transition: background 0.1s; }
+    .album-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 0; transition: background 0.1s; user-select: none; -webkit-user-select: none; }
     .album-row:active { background: var(--bg3); }
-    .album-row.drag-over { background: var(--bg4); outline: 1px solid var(--green); }
+    .album-row.drag-over { background: var(--bg4); outline: 2px solid var(--green); }
     .album-row.now-playing { background: rgba(29,185,84,0.08); }
+    .album-row.dragging { opacity: 0.4; background: var(--bg3); }
+    .drag-handle { color: var(--text3); font-size: 18px; flex-shrink: 0; padding: 4px; cursor: grab; touch-action: none; }
     .album-art { width: 52px; height: 52px; border-radius: 4px; object-fit: cover; background: var(--bg4); flex-shrink: 0; }
     .album-info { flex: 1; min-width: 0; }
     .album-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -297,6 +299,7 @@ function App() {
   const [syncing, setSyncing] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOver, setDragOver] = useState(null);
+  const touchDragRef = useRef({ active: false, startIdx: null, currentIdx: null });
   const [playback, setPlayback] = useState(null);
   const [devices, setDevices] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -372,22 +375,73 @@ function App() {
     setTimeout(fetchPlayback, 700);
   }
 
-  function playAlbum(albumId) {
-    const deviceId = getBestDeviceId();
-    const body = { context_uri: 'spotify:album:' + albumId };
-    if (deviceId) body.device_id = deviceId;
-    playerCmd('play', 'PUT', body);
-    setTimeout(fetchPlayback, 1000);
-  }
-
   const activePl = playlists.find(p => p.id === activeId);
   const nowPlayingAlbumId = playback?.item?.album?.id;
+
+  // Play an album within the context of the full Albumify playlist.
+  // We sync the playlist to Spotify first (or reuse existing), then play
+  // from the correct offset so Spotify auto-advances through all albums.
+  async function playAlbumInContext(albumId, pl) {
+    if (!pl || !user) return;
+    showToast('Loading…');
+    try {
+      // Ensure we have a synced Spotify playlist
+      let plId = pl.spotifyPlId;
+      const allTracks = [];
+      for (const album of pl.albums) {
+        const data = await api('https://api.spotify.com/v1/albums/' + album.id + '/tracks?limit=50');
+        if (data?.items) allTracks.push(...data.items.map(t => ({ uri: t.uri, albumId: album.id })));
+      }
+      if (plId) {
+        // Update existing playlist tracks
+        await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+          method: 'PUT', body: JSON.stringify({ uris: allTracks.slice(0,100).map(t=>t.uri) })
+        });
+        for (let i = 100; i < allTracks.length; i += 100) {
+          await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+            method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
+          });
+        }
+      } else {
+        // Create new Spotify playlist
+        const created = await api('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
+          method: 'POST', body: JSON.stringify({ name: pl.name + ' (Albumify)', public: false, description: 'Created by Albumify' })
+        });
+        plId = created.id;
+        for (let i = 0; i < allTracks.length; i += 100) {
+          await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+            method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
+          });
+        }
+        persist(playlists.map(p => p.id !== pl.id ? p : { ...p, spotifyPlId: plId }));
+      }
+      // Find the offset of the first track of the target album
+      const offset = allTracks.findIndex(t => t.albumId === albumId);
+      const deviceId = getBestDeviceId();
+      const body = {
+        context_uri: 'spotify:playlist:' + plId,
+        offset: { position: offset >= 0 ? offset : 0 }
+      };
+      if (deviceId) body.device_id = deviceId;
+      const tok = await getToken();
+      await fetch('https://api.spotify.com/v1/me/player/play' + (deviceId ? '?device_id=' + deviceId : ''), {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      setTimeout(fetchPlayback, 1000);
+    } catch(e) { showToast('Playback failed — try again'); }
+  }
+
+  function playAlbum(albumId) {
+    playAlbumInContext(albumId, activePl);
+  }
 
   function nextAlbum() {
     if (!activePl || !nowPlayingAlbumId) return;
     const idx = activePl.albums.findIndex(a => a.id === nowPlayingAlbumId);
     if (idx === -1 || idx >= activePl.albums.length - 1) { showToast('Last album'); return; }
-    playAlbum(activePl.albums[idx + 1].id);
+    playAlbumInContext(activePl.albums[idx + 1].id, activePl);
     showToast(activePl.albums[idx + 1].name);
   }
 
@@ -396,11 +450,55 @@ function App() {
     const idx = activePl.albums.findIndex(a => a.id === nowPlayingAlbumId);
     if (playback && playback.progress_ms > 3000) { playerCmd('seek?position_ms=0'); return; }
     if (idx <= 0) { showToast('First album'); return; }
-    playAlbum(activePl.albums[idx - 1].id);
+    playAlbumInContext(activePl.albums[idx - 1].id, activePl);
     showToast(activePl.albums[idx - 1].name);
   }
 
   function persist(pls) { setPlaylists(pls); savePlaylists(pls); }
+
+  // Silently re-sync the Spotify playlist after any reorder/add/remove,
+  // then seek back to keep the current track uninterrupted.
+  async function backgroundSync(updatedPl) {
+    if (!updatedPl || !updatedPl.spotifyPlId || !user) return;
+    try {
+      const allTracks = [];
+      for (const album of updatedPl.albums) {
+        const data = await api('https://api.spotify.com/v1/albums/' + album.id + '/tracks?limit=50');
+        if (data?.items) allTracks.push(...data.items.map(t => ({ uri: t.uri, albumId: album.id })));
+      }
+      // Replace playlist tracks with new order
+      await api('https://api.spotify.com/v1/playlists/' + updatedPl.spotifyPlId + '/tracks', {
+        method: 'PUT', body: JSON.stringify({ uris: allTracks.slice(0,100).map(t=>t.uri) })
+      });
+      for (let i = 100; i < allTracks.length; i += 100) {
+        await api('https://api.spotify.com/v1/playlists/' + updatedPl.spotifyPlId + '/tracks', {
+          method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
+        });
+      }
+      // If currently playing from this playlist, seek to correct position
+      // so the current track continues uninterrupted in the new context
+      const pb = await api('https://api.spotify.com/v1/me/player');
+      if (pb && pb.item && pb.context &&
+          pb.context.uri === 'spotify:playlist:' + updatedPl.spotifyPlId) {
+        const currentUri = pb.item.uri;
+        const currentMs = pb.progress_ms;
+        const newOffset = allTracks.findIndex(t => t.uri === currentUri);
+        if (newOffset >= 0) {
+          const deviceId = getBestDeviceId();
+          const tok = await getToken();
+          await fetch('https://api.spotify.com/v1/me/player/play' + (deviceId ? '?device_id=' + deviceId : ''), {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              context_uri: 'spotify:playlist:' + updatedPl.spotifyPlId,
+              offset: { position: newOffset },
+              position_ms: currentMs
+            })
+          });
+        }
+      }
+    } catch(e) { /* silent — don't interrupt user */ }
+  }
 
   function createPlaylist() {
     if (!newName.trim()) return;
@@ -411,24 +509,37 @@ function App() {
 
   function addAlbum(album) {
     if (!activeId) { showToast('Select or create a playlist first'); return; }
-    persist(playlists.map(p => {
+    let updated = null;
+    const newPls = playlists.map(p => {
       if (p.id !== activeId) return p;
       if (p.albums.some(a => a.id === album.id)) { showToast('Already in playlist'); return p; }
-      return { ...p, albums: [...p.albums, { id: album.id, name: album.name, artists: album.artists, images: album.images, total_tracks: album.total_tracks }] };
-    }));
+      updated = { ...p, albums: [...p.albums, { id: album.id, name: album.name, artists: album.artists, images: album.images, total_tracks: album.total_tracks }] };
+      return updated;
+    });
+    persist(newPls);
     setSearchQuery(''); setSearchResults([]);
     showToast('Added "' + album.name + '"');
+    if (updated) backgroundSync(updated);
   }
 
   function removeAlbum(plId, albumId) {
-    persist(playlists.map(p => p.id !== plId ? p : { ...p, albums: p.albums.filter(a => a.id !== albumId) }));
+    let updated = null;
+    const newPls = playlists.map(p => {
+      if (p.id !== plId) return p;
+      updated = { ...p, albums: p.albums.filter(a => a.id !== albumId) };
+      return updated;
+    });
+    persist(newPls);
+    if (updated) backgroundSync(updated);
   }
 
   function shuffleAlbums() {
     if (!activePl) return;
     const shuffled = [...activePl.albums].sort(() => Math.random() - 0.5);
-    persist(playlists.map(p => p.id !== activeId ? p : { ...p, albums: shuffled }));
+    const updated = { ...activePl, albums: shuffled };
+    persist(playlists.map(p => p.id !== activeId ? p : updated));
     showToast('Albums shuffled');
+    backgroundSync(updated);
   }
 
   function renamePlaylist(id, name) { persist(playlists.map(p => p.id !== id ? p : { ...p, name })); }
@@ -443,13 +554,58 @@ function App() {
   function onDragOver(e, i) { e.preventDefault(); setDragOver(i); }
   function onDrop(i) {
     if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDragOver(null); return; }
-    persist(playlists.map(p => {
+    let updated = null;
+    const newPls = playlists.map(p => {
       if (p.id !== activeId) return p;
       const albums = [...p.albums];
       const [moved] = albums.splice(dragIdx, 1);
       albums.splice(i, 0, moved);
-      return { ...p, albums };
-    }));
+      updated = { ...p, albums };
+      return updated;
+    });
+    persist(newPls);
+    setDragIdx(null); setDragOver(null);
+    if (updated) backgroundSync(updated);
+  }
+
+  // Touch drag handlers for mobile reordering
+  function onTouchDragStart(e, i) {
+    touchDragRef.current = { active: true, startIdx: i, currentIdx: i };
+    setDragIdx(i);
+  }
+
+  function onTouchDragMove(e) {
+    if (!touchDragRef.current.active) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const row = el && el.closest('[data-album-index]');
+    if (row) {
+      const idx = parseInt(row.getAttribute('data-album-index'));
+      if (!isNaN(idx) && idx !== touchDragRef.current.currentIdx) {
+        touchDragRef.current.currentIdx = idx;
+        setDragOver(idx);
+      }
+    }
+  }
+
+  function onTouchDragEnd() {
+    if (!touchDragRef.current.active) return;
+    const { startIdx, currentIdx } = touchDragRef.current;
+    touchDragRef.current = { active: false, startIdx: null, currentIdx: null };
+    if (startIdx !== null && currentIdx !== null && startIdx !== currentIdx) {
+      let updated = null;
+      const newPls = playlists.map(p => {
+        if (p.id !== activeId) return p;
+        const albums = [...p.albums];
+        const [moved] = albums.splice(startIdx, 1);
+        albums.splice(currentIdx, 0, moved);
+        updated = { ...p, albums };
+        return updated;
+      });
+      persist(newPls);
+      if (updated) backgroundSync(updated);
+    }
     setDragIdx(null); setDragOver(null);
   }
 
@@ -657,7 +813,8 @@ function App() {
                         const isPlaying = nowPlayingAlbumId === album.id;
                         return h('div', {
                           key: album.id,
-                          className: 'album-row' + (dragOver === i ? ' drag-over' : '') + (isPlaying ? ' now-playing' : ''),
+                          'data-album-index': i,
+                          className: 'album-row' + (dragOver === i ? ' drag-over' : '') + (isPlaying ? ' now-playing' : '') + (dragIdx === i ? ' dragging' : ''),
                           draggable: true,
                           onClick: () => playAlbum(album.id),
                           onDragStart: () => onDragStart(i),
@@ -665,6 +822,14 @@ function App() {
                           onDrop: () => onDrop(i),
                           onDragEnd: () => { setDragIdx(null); setDragOver(null); }
                         },
+                          h('span', {
+                            className: 'drag-handle',
+                            title: 'Hold to reorder',
+                            onTouchStart: e => { e.stopPropagation(); onTouchDragStart(e, i); },
+                            onTouchMove: e => onTouchDragMove(e),
+                            onTouchEnd: () => onTouchDragEnd(),
+                            onClick: e => e.stopPropagation()
+                          }, '⠿'),
                           artUrl
                             ? h('img', { className: 'album-art', src: artUrl, alt: '' })
                             : h('div', { className: 'album-art', style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } }, '♫'),
