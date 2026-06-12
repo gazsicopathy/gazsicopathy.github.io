@@ -542,7 +542,21 @@ function App() {
     backgroundSync(updated);
   }
 
-  function renamePlaylist(id, name) { persist(playlists.map(p => p.id !== id ? p : { ...p, name })); }
+  function renamePlaylist(id, name) {
+    const updated = playlists.map(p => p.id !== id ? p : { ...p, name });
+    persist(updated);
+    // If this playlist is linked to Spotify, update the Spotify playlist name too
+    const pl = updated.find(p => p.id === id);
+    if (pl && pl.spotifyPlId) {
+      getToken().then(tok => {
+        fetch('https://api.spotify.com/v1/playlists/' + pl.spotifyPlId, {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name + ' (Albumify)' })
+        }).catch(() => {});
+      });
+    }
+  }
 
   function deletePlaylist(id) {
     const updated = playlists.filter(p => p.id !== id);
