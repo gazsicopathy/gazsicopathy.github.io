@@ -4,121 +4,37 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Albumify</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --green: #1DB954;
-      --green-dark: #158a3e;
-      --bg: #0a0a0a;
-      --bg2: #141414;
-      --bg3: #1e1e1e;
-      --bg4: #2a2a2a;
-      --text: #ffffff;
-      --text2: #b3b3b3;
-      --text3: #6a6a6a;
+      --green: #1DB954; --green-dark: #158a3e;
+      --bg: #0a0a0a; --bg2: #141414; --bg3: #1e1e1e; --bg4: #2a2a2a;
+      --text: #ffffff; --text2: #b3b3b3; --text3: #6a6a6a;
       --border: rgba(255,255,255,0.08);
-      --radius: 8px;
-      --radius-lg: 12px;
+      --radius: 8px; --radius-lg: 12px;
     }
-
     html, body, #root { height: 100%; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Circular', 'Helvetica Neue', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      -webkit-font-smoothing: antialiased;
-    }
-
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
     button { cursor: pointer; border: none; background: none; color: inherit; font: inherit; }
     input { font: inherit; }
     img { display: block; }
-
     .app { display: flex; height: 100vh; overflow: hidden; }
 
     /* Sidebar */
-    .sidebar {
-      width: 260px;
-      min-width: 260px;
-      background: var(--bg);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    .sidebar-header {
-      padding: 20px 16px 12px;
-      border-bottom: 1px solid var(--border);
-    }
-    .logo {
-      font-size: 22px;
-      font-weight: 800;
-      color: var(--green);
-      letter-spacing: -0.5px;
-      margin-bottom: 16px;
-    }
-    .new-pl-btn {
-      width: 100%;
-      background: var(--green);
-      color: #000;
-      font-weight: 700;
-      font-size: 13px;
-      padding: 8px 12px;
-      border-radius: var(--radius);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: background 0.15s;
-    }
+    .sidebar { width: 260px; min-width: 260px; background: var(--bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    .sidebar-header { padding: 20px 16px 12px; border-bottom: 1px solid var(--border); }
+    .logo { font-size: 22px; font-weight: 800; color: var(--green); letter-spacing: -0.5px; margin-bottom: 16px; }
+    .new-pl-btn { width: 100%; background: var(--green); color: #000; font-weight: 700; font-size: 13px; padding: 8px 12px; border-radius: var(--radius); display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
     .new-pl-btn:hover { background: #1ed760; }
-    .new-pl-btn svg { width: 14px; height: 14px; }
-
     .pl-list { flex: 1; overflow-y: auto; padding: 8px 0; }
-    .pl-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 16px;
-      cursor: pointer;
-      border-radius: 0;
-      transition: background 0.1s;
-      font-size: 13px;
-      color: var(--text2);
-    }
-    .pl-item:hover { background: var(--bg3); color: var(--text); }
-    .pl-item.active { background: var(--bg3); color: var(--text); }
-    .pl-item-icon {
-      width: 36px; height: 36px;
-      background: var(--bg4);
-      border-radius: 4px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      font-size: 16px;
-    }
+    .pl-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; cursor: pointer; transition: background 0.1s; font-size: 13px; color: var(--text2); }
+    .pl-item:hover, .pl-item.active { background: var(--bg3); color: var(--text); }
+    .pl-item-icon { width: 36px; height: 36px; background: var(--bg4); border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; overflow: hidden; }
     .pl-item-icon img { width: 36px; height: 36px; border-radius: 4px; object-fit: cover; }
-    .pl-item-info { min-width: 0; }
-    .pl-item-name { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pl-item-name { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
     .pl-item-count { font-size: 11px; color: var(--text3); margin-top: 1px; }
-
-    .sidebar-user {
-      padding: 12px 16px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-    }
-    .user-avatar {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      background: var(--bg4);
-      overflow: hidden;
-      flex-shrink: 0;
-    }
+    .sidebar-user { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--bg4); overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .user-name { font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .logout-btn { color: var(--text3); font-size: 11px; text-decoration: underline; }
@@ -126,300 +42,95 @@
 
     /* Main */
     .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-
-    /* Top bar */
-    .topbar {
-      padding: 16px 24px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-shrink: 0;
-    }
-    .search-wrap {
-      flex: 1;
-      max-width: 420px;
-      position: relative;
-    }
-    .search-wrap svg {
-      position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
-      width: 16px; height: 16px; color: var(--text3);
-    }
-    .search-input {
-      width: 100%;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 8px 12px 8px 34px;
-      color: var(--text);
-      font-size: 13px;
-      outline: none;
-      transition: border-color 0.15s;
-    }
+    .topbar { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-shrink: 0; flex-wrap: wrap; }
+    .search-wrap { flex: 1; max-width: 420px; position: relative; min-width: 200px; }
+    .search-input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 20px; padding: 8px 12px 8px 34px; color: var(--text); font-size: 13px; outline: none; transition: border-color 0.15s; }
     .search-input::placeholder { color: var(--text3); }
     .search-input:focus { border-color: var(--green); }
-
-    .topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-    .action-btn {
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 7px 14px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text2);
-      display: flex; align-items: center; gap: 6px;
-      transition: all 0.15s;
-    }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text3); pointer-events: none; }
+    .topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+    .action-btn { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 7px 14px; font-size: 13px; font-weight: 600; color: var(--text2); display: flex; align-items: center; gap: 6px; transition: all 0.15s; }
     .action-btn:hover { background: var(--bg4); color: var(--text); }
     .action-btn.primary { background: var(--green); color: #000; border-color: var(--green); }
     .action-btn.primary:hover { background: #1ed760; }
-    .action-btn svg { width: 14px; height: 14px; }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* Content */
-    .content { flex: 1; overflow-y: auto; }
-
-    /* Playlist header */
-    .pl-header {
-      padding: 24px;
-      background: linear-gradient(180deg, #1a2a1a 0%, var(--bg2) 100%);
-      display: flex; gap: 20px; align-items: flex-end;
-    }
-    .pl-cover {
-      width: 120px; height: 120px; border-radius: var(--radius);
-      background: var(--bg4);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 40px;
-      flex-shrink: 0;
-      overflow: hidden;
-    }
-    .pl-cover-grid {
-      display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
-      width: 120px; height: 120px; border-radius: var(--radius); overflow: hidden;
-    }
-    .pl-cover-grid img { width: 100%; height: 100%; object-fit: cover; }
-    .pl-meta { min-width: 0; }
-    .pl-type { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); margin-bottom: 4px; }
-    .pl-title {
-      font-size: 28px; font-weight: 800; letter-spacing: -0.5px;
-      margin-bottom: 6px; line-height: 1.1;
-    }
-    .pl-title input {
-      background: transparent; border: none; outline: none;
-      color: var(--text); font-size: 28px; font-weight: 800;
-      letter-spacing: -0.5px; width: 100%;
-    }
-    .pl-title input:focus { border-bottom: 2px solid var(--green); }
-    .pl-stats { font-size: 13px; color: var(--text2); }
-
-    /* Album list */
-    .album-list { padding: 16px 24px; }
-    .album-list-header {
-      display: grid;
-      grid-template-columns: 32px 60px 1fr 120px 40px;
-      gap: 12px;
-      padding: 0 8px 8px;
-      border-bottom: 1px solid var(--border);
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text3);
-      margin-bottom: 4px;
-    }
-    .album-row {
-      display: grid;
-      grid-template-columns: 32px 60px 1fr 120px 40px;
-      gap: 12px;
-      padding: 6px 8px;
-      border-radius: var(--radius);
-      align-items: center;
-      transition: background 0.1s;
-      cursor: grab;
-    }
-    .album-row:hover { background: var(--bg3); }
-    .album-row.dragging { opacity: 0.4; }
-    .album-row.drag-over { background: var(--bg4); outline: 1px solid var(--green); }
-    .album-num { font-size: 13px; color: var(--text3); text-align: center; }
-    .album-art { width: 56px; height: 56px; border-radius: 4px; object-fit: cover; background: var(--bg4); }
-    .album-info { min-width: 0; }
-    .album-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .album-artist { font-size: 12px; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .album-tracks { font-size: 13px; color: var(--text2); }
-    .album-actions { display: flex; gap: 4px; justify-content: flex-end; }
-    .icon-btn {
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      color: var(--text3);
-      transition: all 0.1s;
-    }
-    .icon-btn:hover { background: var(--bg4); color: var(--text); }
-    .icon-btn svg { width: 14px; height: 14px; }
-
-    /* Search results */
-    .search-results {
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0; right: 0;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      z-index: 100;
-      max-height: 360px;
-      overflow-y: auto;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-    }
-    .search-result-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 14px;
-      cursor: pointer;
-      transition: background 0.1s;
-      border-bottom: 1px solid var(--border);
-    }
+    /* Search results dropdown */
+    .search-results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); z-index: 100; max-height: 360px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+    .search-result-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background 0.1s; border-bottom: 1px solid var(--border); }
     .search-result-item:last-child { border-bottom: none; }
     .search-result-item:hover { background: var(--bg4); }
     .search-result-art { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
-    .search-result-info { min-width: 0; flex: 1; }
     .search-result-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .search-result-artist { font-size: 11px; color: var(--text2); margin-top: 2px; }
-    .add-btn-small {
-      background: var(--green);
-      color: #000;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 20px;
-      flex-shrink: 0;
-    }
+    .add-btn-small { background: var(--green); color: #000; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; flex-shrink: 0; }
     .add-btn-small:hover { background: #1ed760; }
 
-    /* Login screen */
-    .login-screen {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      height: 100vh; gap: 20px; text-align: center; padding: 24px;
-    }
+    /* Content */
+    .content { flex: 1; overflow-y: auto; }
+    .pl-header { padding: 24px; background: linear-gradient(180deg, #1a2a1a 0%, var(--bg2) 100%); display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; }
+    .pl-cover { width: 120px; height: 120px; border-radius: var(--radius); background: var(--bg4); display: flex; align-items: center; justify-content: center; font-size: 40px; flex-shrink: 0; overflow: hidden; }
+    .pl-cover-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; width: 120px; height: 120px; border-radius: var(--radius); overflow: hidden; }
+    .pl-cover-grid img { width: 100%; height: 100%; object-fit: cover; }
+    .pl-meta { min-width: 0; flex: 1; }
+    .pl-type { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); margin-bottom: 4px; }
+    .pl-title-input { background: transparent; border: none; outline: none; color: var(--text); font-size: 28px; font-weight: 800; letter-spacing: -0.5px; width: 100%; border-bottom: 2px solid transparent; transition: border-color 0.15s; }
+    .pl-title-input:focus { border-bottom-color: var(--green); }
+    .pl-stats { font-size: 13px; color: var(--text2); margin-top: 6px; }
+    .album-list { padding: 16px 24px; }
+    .album-list-header { display: grid; grid-template-columns: 32px 60px 1fr 100px 40px; gap: 12px; padding: 0 8px 8px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 4px; }
+    .album-row { display: grid; grid-template-columns: 32px 60px 1fr 100px 40px; gap: 12px; padding: 6px 8px; border-radius: var(--radius); align-items: center; transition: background 0.1s; cursor: grab; }
+    .album-row:hover { background: var(--bg3); }
+    .album-row.drag-over { background: var(--bg4); outline: 1px solid var(--green); }
+    .album-art { width: 56px; height: 56px; border-radius: 4px; object-fit: cover; background: var(--bg4); }
+    .album-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .album-artist { font-size: 12px; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .album-tracks { font-size: 13px; color: var(--text2); }
+    .icon-btn { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text3); transition: all 0.1s; }
+    .icon-btn:hover { background: var(--bg4); color: var(--text); }
+
+    /* Login */
+    .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 20px; text-align: center; padding: 24px; }
     .login-logo { font-size: 48px; font-weight: 900; color: var(--green); letter-spacing: -2px; }
     .login-sub { font-size: 16px; color: var(--text2); max-width: 300px; line-height: 1.5; }
-    .login-btn {
-      background: var(--green);
-      color: #000;
-      font-weight: 800;
-      font-size: 15px;
-      padding: 14px 32px;
-      border-radius: 30px;
-      margin-top: 8px;
-      transition: all 0.15s;
-      letter-spacing: 0.3px;
-    }
+    .login-btn { background: var(--green); color: #000; font-weight: 800; font-size: 15px; padding: 14px 32px; border-radius: 30px; margin-top: 8px; transition: all 0.15s; letter-spacing: 0.3px; }
     .login-btn:hover { background: #1ed760; transform: scale(1.02); }
 
-    /* Empty state */
-    .empty-state {
-      display: flex; flex-direction: column; align-items: center;
-      padding: 60px 24px; color: var(--text3); gap: 8px; text-align: center;
-    }
-    .empty-state svg { width: 48px; height: 48px; margin-bottom: 8px; }
-    .empty-state h3 { font-size: 16px; color: var(--text2); }
-    .empty-state p { font-size: 13px; max-width: 280px; line-height: 1.5; }
+    /* Empty / no selection */
+    .empty-state, .no-selection { display: flex; flex-direction: column; align-items: center; padding: 60px 24px; color: var(--text3); gap: 8px; text-align: center; }
+    .no-selection { flex: 1; justify-content: center; }
+    .empty-state h3, .no-selection h2 { font-size: 16px; color: var(--text2); }
+    .empty-state p, .no-selection p { font-size: 13px; max-width: 280px; line-height: 1.5; }
 
     /* Modal */
-    .modal-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.7);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 200;
-    }
-    .modal {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      width: 480px;
-      max-width: calc(100vw - 32px);
-      max-height: 80vh;
-      overflow-y: auto;
-    }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 200; }
+    .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; width: 480px; max-width: calc(100vw - 32px); max-height: 80vh; overflow-y: auto; }
     .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
-    .modal-input {
-      width: 100%;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 10px 14px;
-      color: var(--text);
-      font-size: 14px;
-      outline: none;
-      margin-bottom: 16px;
-    }
+    .modal-input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; margin-bottom: 16px; }
     .modal-input:focus { border-color: var(--green); }
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
-
-    /* Toast */
-    .toast {
-      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-      background: var(--bg3);
-      border: 1px solid var(--green);
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 600;
-      padding: 10px 20px;
-      border-radius: 20px;
-      z-index: 300;
-      animation: fadeInUp 0.2s ease;
-    }
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateX(-50%) translateY(8px); }
-      to { opacity: 1; transform: translateX(-50%) translateY(0); }
-    }
-
-    /* Import result */
-    .import-result-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 0; border-bottom: 1px solid var(--border);
-      font-size: 13px;
-    }
-    .import-result-art { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; }
-    .import-check { color: var(--green); font-weight: 700; margin-left: auto; }
-
+    .import-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; cursor: pointer; }
+    .import-item:hover { opacity: 0.8; }
+    .import-art { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: var(--bg4); }
     .scrollable { overflow-y: auto; max-height: 320px; }
 
-    /* Drag handle */
-    .drag-handle { color: var(--text3); cursor: grab; }
-    .drag-handle svg { width: 14px; height: 14px; }
-
-    /* No playlist selected */
-    .no-selection {
-      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 12px; color: var(--text3); text-align: center; padding: 24px;
-    }
-    .no-selection svg { width: 56px; height: 56px; }
-    .no-selection h2 { font-size: 18px; color: var(--text2); }
-    .no-selection p { font-size: 14px; max-width: 260px; line-height: 1.5; }
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--bg3); border: 1px solid var(--green); color: var(--text); font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 20px; z-index: 300; white-space: nowrap; }
 
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
-
-    @media (max-width: 600px) {
-      .sidebar { width: 200px; min-width: 200px; }
-      .pl-header { padding: 16px; }
-      .pl-title { font-size: 20px; }
-      .album-list { padding: 12px 16px; }
-    }
   </style>
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel">
-const { useState, useEffect, useRef, useCallback } = React;
-
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script>
 const CLIENT_ID = 'd18c67119478426581be794900feea54';
 const REDIRECT_URI = 'https://gazsicopathy.github.io/spotify-callback/';
-const SCOPES = [
-  'user-read-private','user-read-email',
-  'playlist-read-private','playlist-modify-public','playlist-modify-private'
-].join(' ');
+const APP_URL = 'https://gazsicopathy.github.io/albumify/';
+const SCOPES = 'user-read-private user-read-email playlist-read-private playlist-modify-public playlist-modify-private';
 
 // PKCE helpers
 function generateCodeVerifier() {
@@ -432,7 +143,6 @@ async function generateCodeChallenge(verifier) {
   const digest = await crypto.subtle.digest('SHA-256', data);
   return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
 }
-
 function generateState() {
   const arr = new Uint8Array(16);
   crypto.getRandomValues(arr);
@@ -461,13 +171,7 @@ async function exchangeCode(code) {
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: CLIENT_ID,
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: REDIRECT_URI,
-      code_verifier: verifier,
-    })
+    body: new URLSearchParams({ client_id: CLIENT_ID, grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, code_verifier: verifier })
   });
   const data = await res.json();
   if (data.access_token) {
@@ -480,552 +184,413 @@ async function exchangeCode(code) {
   return data;
 }
 
-async function refreshToken() {
-  const refresh = localStorage.getItem('spotify_refresh_token');
-  if (!refresh) return null;
-  const res = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: CLIENT_ID,
-      grant_type: 'refresh_token',
-      refresh_token: refresh,
-    })
-  });
-  const data = await res.json();
-  if (data.access_token) {
-    localStorage.setItem('spotify_access_token', data.access_token);
-    localStorage.setItem('spotify_token_expires', Date.now() + (data.expires_in * 1000));
-  }
-  return data.access_token;
-}
-
 async function getToken() {
   const exp = parseInt(localStorage.getItem('spotify_token_expires') || '0');
   if (Date.now() > exp - 60000) {
-    return await refreshToken();
+    const refresh = localStorage.getItem('spotify_refresh_token');
+    if (!refresh) return null;
+    const res = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: CLIENT_ID, grant_type: 'refresh_token', refresh_token: refresh })
+    });
+    const data = await res.json();
+    if (data.access_token) {
+      localStorage.setItem('spotify_access_token', data.access_token);
+      localStorage.setItem('spotify_token_expires', Date.now() + (data.expires_in * 1000));
+      return data.access_token;
+    }
+    return null;
   }
   return localStorage.getItem('spotify_access_token');
 }
 
-async function spotifyFetch(url, options = {}) {
+async function api(url, options = {}) {
   const token = await getToken();
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    }
-  });
+  const res = await fetch(url, { ...options, headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', ...(options.headers||{}) } });
   if (res.status === 204) return null;
   return res.json();
 }
 
-function loadPlaylists() {
-  try { return JSON.parse(localStorage.getItem('albumify_playlists') || '[]'); }
-  catch { return []; }
-}
-function savePlaylists(pls) {
-  localStorage.setItem('albumify_playlists', JSON.stringify(pls));
+function loadPlaylists() { try { return JSON.parse(localStorage.getItem('albumify_playlists') || '[]'); } catch { return []; } }
+function savePlaylists(pls) { localStorage.setItem('albumify_playlists', JSON.stringify(pls)); }
+
+// ---- React app ----
+const { useState, useEffect, useRef } = React;
+const h = React.createElement;
+
+function Icon({ d, size = 16 }) {
+  return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', style: { flexShrink: 0 } },
+    h('path', { d })
+  );
 }
 
-function msToMins(ms) {
-  const total = Math.round(ms / 60000);
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  return h > 0 ? `${h} hr ${m} min` : `${m} min`;
-}
-
-// Icons
-const Svg = {
-  plus: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-  search: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-  trash: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>,
-  music: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>,
-  shuffle: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>,
-  sync: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>,
-  import: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
-  grip: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/></svg>,
-  spotify: <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>,
+const ICONS = {
+  plus: 'M12 5v14M5 12h14',
+  search: 'M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z',
+  trash: 'M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6',
+  shuffle: 'M16 3h5v5M4 20l16.5-16.5M21 16v5h-5M15 15l6 6M4 4l5 5',
+  sync: 'M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15',
+  import: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3',
+  music: 'M9 18V5l12-2v13M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  grip: 'M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01',
 };
 
-export default function App() {
+function App() {
   const [token, setToken] = useState(localStorage.getItem('spotify_access_token'));
   const [user, setUser] = useState(null);
   const [playlists, setPlaylists] = useState(loadPlaylists);
   const [activeId, setActiveId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [showNewModal, setShowNewModal] = useState(false);
+  const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState('');
   const [showImport, setShowImport] = useState(false);
-  const [importResults, setImportResults] = useState(null);
+  const [spotifyPls, setSpotifyPls] = useState([]);
+  const [importAlbums, setImportAlbums] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
-  const [spotifyPlaylists, setSpotifyPlaylists] = useState([]);
   const [toast, setToast] = useState('');
   const [syncing, setSyncing] = useState(false);
-  const [dragging, setDragging] = useState(null);
+  const [dragIdx, setDragIdx] = useState(null);
   const [dragOver, setDragOver] = useState(null);
-  const searchRef = useRef(null);
-  const searchTimeout = useRef(null);
+  const searchTimer = useRef(null);
 
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3000);
-  };
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
   // Handle OAuth callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
-    const state = params.get('state');
     if (code) {
-      const savedState = localStorage.getItem('pkce_state');
-      if (!savedState || savedState === state) {
-        exchangeCode(code).then((data) => {
-          if (data.access_token) {
-            setToken(data.access_token);
-            window.history.replaceState({}, '', window.location.pathname);
-          }
-        });
-      }
+      exchangeCode(code).then(data => {
+        if (data.access_token) {
+          setToken(data.access_token);
+          window.history.replaceState({}, '', APP_URL);
+        } else {
+          showToast('Login failed: ' + (data.error || 'unknown error'));
+        }
+      });
     }
   }, []);
 
-  // Load user
   useEffect(() => {
     if (!token) return;
-    spotifyFetch('https://api.spotify.com/v1/me').then(u => {
-      if (u && u.id) setUser(u);
-    });
+    api('https://api.spotify.com/v1/me').then(u => { if (u && u.id) setUser(u); });
   }, [token]);
 
-  const persistPlaylists = (pls) => {
-    setPlaylists(pls);
-    savePlaylists(pls);
-  };
-
-  // Search albums
   useEffect(() => {
+    clearTimeout(searchTimer.current);
     if (!searchQuery.trim() || !token) { setSearchResults([]); return; }
-    clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(async () => {
-      setSearching(true);
-      const data = await spotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQuery)}&type=album&limit=6`);
+    searchTimer.current = setTimeout(async () => {
+      const data = await api('https://api.spotify.com/v1/search?q=' + encodeURIComponent(searchQuery) + '&type=album&limit=6');
       setSearchResults(data?.albums?.items || []);
-      setSearching(false);
     }, 400);
   }, [searchQuery, token]);
 
-  const activePlaylist = playlists.find(p => p.id === activeId);
+  const persist = (pls) => { setPlaylists(pls); savePlaylists(pls); };
+
+  const activePl = playlists.find(p => p.id === activeId);
 
   const createPlaylist = () => {
     if (!newName.trim()) return;
     const pl = { id: crypto.randomUUID(), name: newName.trim(), albums: [], created: Date.now() };
-    const updated = [...playlists, pl];
-    persistPlaylists(updated);
-    setActiveId(pl.id);
-    setShowNewModal(false);
-    setNewName('');
-  };
-
-  const deletePlaylist = (id) => {
-    const updated = playlists.filter(p => p.id !== id);
-    persistPlaylists(updated);
-    if (activeId === id) setActiveId(updated[0]?.id || null);
+    persist([...playlists, pl]);
+    setActiveId(pl.id); setShowNew(false); setNewName('');
   };
 
   const addAlbum = (album) => {
     if (!activeId) { showToast('Select or create a playlist first'); return; }
-    const updated = playlists.map(p => {
+    persist(playlists.map(p => {
       if (p.id !== activeId) return p;
       if (p.albums.some(a => a.id === album.id)) { showToast('Already in playlist'); return p; }
       return { ...p, albums: [...p.albums, { id: album.id, name: album.name, artists: album.artists, images: album.images, total_tracks: album.total_tracks }] };
-    });
-    persistPlaylists(updated);
-    setSearchQuery('');
-    setSearchResults([]);
-    showToast(`Added "${album.name}"`);
+    }));
+    setSearchQuery(''); setSearchResults([]);
+    showToast('Added "' + album.name + '"');
   };
 
-  const removeAlbum = (plId, albumId) => {
-    const updated = playlists.map(p => p.id !== plId ? p : { ...p, albums: p.albums.filter(a => a.id !== albumId) });
-    persistPlaylists(updated);
-  };
+  const removeAlbum = (plId, albumId) => persist(playlists.map(p => p.id !== plId ? p : { ...p, albums: p.albums.filter(a => a.id !== albumId) }));
 
   const shuffleAlbums = () => {
-    if (!activePlaylist) return;
-    const shuffled = [...activePlaylist.albums].sort(() => Math.random() - 0.5);
-    const updated = playlists.map(p => p.id !== activeId ? p : { ...p, albums: shuffled });
-    persistPlaylists(updated);
+    if (!activePl) return;
+    const shuffled = [...activePl.albums].sort(() => Math.random() - 0.5);
+    persist(playlists.map(p => p.id !== activeId ? p : { ...p, albums: shuffled }));
     showToast('Albums shuffled');
   };
 
-  const renamePlaylist = (id, name) => {
-    const updated = playlists.map(p => p.id !== id ? p : { ...p, name });
-    persistPlaylists(updated);
+  const renamePlaylist = (id, name) => persist(playlists.map(p => p.id !== id ? p : { ...p, name }));
+  const deletePlaylist = (id) => {
+    const updated = playlists.filter(p => p.id !== id);
+    persist(updated);
+    if (activeId === id) setActiveId(updated[0]?.id || null);
   };
 
-  // Drag and drop
-  const onDragStart = (index) => setDragging(index);
-  const onDragOver = (e, index) => { e.preventDefault(); setDragOver(index); };
-  const onDrop = (index) => {
-    if (dragging === null || dragging === index) { setDragging(null); setDragOver(null); return; }
-    const updated = playlists.map(p => {
+  const onDragStart = (i) => setDragIdx(i);
+  const onDragOver = (e, i) => { e.preventDefault(); setDragOver(i); };
+  const onDrop = (i) => {
+    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDragOver(null); return; }
+    persist(playlists.map(p => {
       if (p.id !== activeId) return p;
       const albums = [...p.albums];
-      const [moved] = albums.splice(dragging, 1);
-      albums.splice(index, 0, moved);
+      const [moved] = albums.splice(dragIdx, 1);
+      albums.splice(i, 0, moved);
       return { ...p, albums };
-    });
-    persistPlaylists(updated);
-    setDragging(null); setDragOver(null);
+    }));
+    setDragIdx(null); setDragOver(null);
   };
 
-  // Sync to Spotify
   const syncToSpotify = async () => {
-    if (!activePlaylist || !user) return;
+    if (!activePl || !user) return;
     setSyncing(true);
     try {
       const allTracks = [];
-      for (const album of activePlaylist.albums) {
-        const data = await spotifyFetch(`https://api.spotify.com/v1/albums/${album.id}/tracks?limit=50`);
+      for (const album of activePl.albums) {
+        const data = await api('https://api.spotify.com/v1/albums/' + album.id + '/tracks?limit=50');
         if (data?.items) allTracks.push(...data.items.map(t => t.uri));
       }
-      const pl = await spotifyFetch(`https://api.spotify.com/v1/users/${user.id}/playlists`, {
+      const pl = await api('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
         method: 'POST',
-        body: JSON.stringify({ name: activePlaylist.name + ' (Albumify)', public: false, description: 'Created by Albumify' })
+        body: JSON.stringify({ name: activePl.name + ' (Albumify)', public: false, description: 'Created by Albumify' })
       });
       for (let i = 0; i < allTracks.length; i += 100) {
-        await spotifyFetch(`https://api.spotify.com/v1/playlists/${pl.id}/tracks`, {
-          method: 'POST',
-          body: JSON.stringify({ uris: allTracks.slice(i, i + 100) })
+        await api('https://api.spotify.com/v1/playlists/' + pl.id + '/tracks', {
+          method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i, i + 100) })
         });
       }
-      showToast(`Synced to Spotify as "${pl.name}"`);
-    } catch (e) {
-      showToast('Sync failed — please try again');
-    }
+      showToast('Synced to Spotify as "' + pl.name + '"');
+    } catch (e) { showToast('Sync failed — please try again'); }
     setSyncing(false);
   };
 
-  // Import from Spotify
   const openImport = async () => {
-    setShowImport(true);
-    setImportResults(null);
-    const data = await spotifyFetch('https://api.spotify.com/v1/me/playlists?limit=20');
-    setSpotifyPlaylists(data?.items || []);
+    setShowImport(true); setImportAlbums(null); setImportLoading(false);
+    const data = await api('https://api.spotify.com/v1/me/playlists?limit=20');
+    setSpotifyPls(data?.items || []);
   };
 
-  const importPlaylist = async (spPl) => {
-    setImportLoading(true);
-    setImportResults(null);
-    let tracks = [];
-    let url = `https://api.spotify.com/v1/playlists/${spPl.id}/tracks?limit=50&fields=next,items(track(album(id,name,artists,images,total_tracks)))`;
+  const importPlaylist = async (sp) => {
+    setImportLoading(true); setImportAlbums(null);
+    let tracks = [], url = 'https://api.spotify.com/v1/playlists/' + sp.id + '/tracks?limit=50&fields=next,items(track(album(id,name,artists,images,total_tracks)))';
     while (url) {
-      const data = await spotifyFetch(url);
-      tracks.push(...(data?.items || []).map(i => i.track?.album).filter(Boolean));
+      const data = await api(url);
+      tracks.push(...(data?.items||[]).map(i => i.track?.album).filter(Boolean));
       url = data?.next;
     }
     const seen = new Set();
     const albums = tracks.filter(a => a && a.id && !seen.has(a.id) && seen.add(a.id));
-    const pl = { id: crypto.randomUUID(), name: spPl.name, albums, created: Date.now() };
-    const updated = [...playlists, pl];
-    persistPlaylists(updated);
-    setActiveId(pl.id);
-    setImportResults(albums);
-    setImportLoading(false);
+    const pl = { id: crypto.randomUUID(), name: sp.name, albums, created: Date.now() };
+    persist([...playlists, pl]);
+    setActiveId(pl.id); setImportAlbums(albums); setImportLoading(false);
   };
 
   const logout = () => {
-    localStorage.removeItem('spotify_access_token');
-    localStorage.removeItem('spotify_refresh_token');
-    localStorage.removeItem('spotify_token_expires');
+    ['spotify_access_token','spotify_refresh_token','spotify_token_expires'].forEach(k => localStorage.removeItem(k));
     setToken(null); setUser(null);
   };
 
+  // ---- Render ----
   if (!token) {
-    return (
-      <div className="login-screen">
-        <div className="login-logo">Albumify</div>
-        <div className="login-sub">Your music, the way you actually listen — by album.</div>
-        <button className="login-btn" onClick={startLogin}>
-          Connect with Spotify
-        </button>
-      </div>
+    return h('div', { className: 'login-screen' },
+      h('div', { className: 'login-logo' }, 'Albumify'),
+      h('div', { className: 'login-sub' }, 'Your music, the way you actually listen — by album.'),
+      h('button', { className: 'login-btn', onClick: startLogin }, 'Connect with Spotify')
     );
   }
 
-  const pl = activePlaylist;
+  const pl = activePl;
   const coverImgs = pl?.albums?.slice(0,4).map(a => a.images?.[1]?.url || a.images?.[0]?.url).filter(Boolean) || [];
 
-  return (
-    <div className="app">
-      {/* Sidebar */}
-      <div className="sidebar">
-        <div className="sidebar-header">
-          <div className="logo">Albumify</div>
-          <button className="new-pl-btn" onClick={() => setShowNewModal(true)}>
-            {Svg.plus} New playlist
-          </button>
-        </div>
-        <div className="pl-list">
-          {playlists.length === 0 && (
-            <div style={{padding:'16px', fontSize:'12px', color:'var(--text3)', textAlign:'center'}}>
-              No playlists yet. Create one!
-            </div>
-          )}
-          {playlists.map(p => {
-            const img = p.albums?.[0]?.images?.[1]?.url || p.albums?.[0]?.images?.[0]?.url;
-            return (
-              <div key={p.id} className={`pl-item ${p.id === activeId ? 'active' : ''}`} onClick={() => setActiveId(p.id)}>
-                <div className="pl-item-icon">
-                  {img ? <img src={img} alt="" /> : '♫'}
-                </div>
-                <div className="pl-item-info">
-                  <div className="pl-item-name">{p.name}</div>
-                  <div className="pl-item-count">{p.albums.length} album{p.albums.length !== 1 ? 's':''}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="sidebar-user">
-          {user && (
-            <>
-              <div className="user-avatar">
-                {user.images?.[0]?.url ? <img src={user.images[0].url} alt="" /> : <span style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',fontSize:'14px'}}>{user.display_name?.[0]}</span>}
-              </div>
-              <div className="user-name">{user.display_name}</div>
-              <button className="logout-btn" onClick={logout}>Sign out</button>
-            </>
-          )}
-        </div>
-      </div>
+  return h('div', { className: 'app' },
 
-      {/* Main */}
-      <div className="main">
-        {/* Topbar */}
-        <div className="topbar">
-          <div className="search-wrap" ref={searchRef}>
-            {Svg.search}
-            <input
-              className="search-input"
-              placeholder="Search albums to add…"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onFocus={() => {}}
-            />
-            {searchResults.length > 0 && (
-              <div className="search-results">
-                {searchResults.map(album => (
-                  <div key={album.id} className="search-result-item">
-                    {album.images?.[2]?.url && <img className="search-result-art" src={album.images[2].url} alt="" />}
-                    <div className="search-result-info">
-                      <div className="search-result-name">{album.name}</div>
-                      <div className="search-result-artist">{album.artists?.map(a=>a.name).join(', ')} · {album.total_tracks} tracks</div>
-                    </div>
-                    <button className="add-btn-small" onClick={() => addAlbum(album)}>Add</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+    // Sidebar
+    h('div', { className: 'sidebar' },
+      h('div', { className: 'sidebar-header' },
+        h('div', { className: 'logo' }, 'Albumify'),
+        h('button', { className: 'new-pl-btn', onClick: () => setShowNew(true) }, '+  New playlist')
+      ),
+      h('div', { className: 'pl-list' },
+        playlists.length === 0 && h('div', { style: { padding: '16px', fontSize: '12px', color: 'var(--text3)', textAlign: 'center' } }, 'No playlists yet. Create one!'),
+        ...playlists.map(p => {
+          const img = p.albums?.[0]?.images?.[1]?.url || p.albums?.[0]?.images?.[0]?.url;
+          return h('div', { key: p.id, className: 'pl-item' + (p.id === activeId ? ' active' : ''), onClick: () => setActiveId(p.id) },
+            h('div', { className: 'pl-item-icon' }, img ? h('img', { src: img, alt: '' }) : '♫'),
+            h('div', {},
+              h('div', { className: 'pl-item-name' }, p.name),
+              h('div', { className: 'pl-item-count' }, p.albums.length + ' album' + (p.albums.length !== 1 ? 's' : ''))
+            )
+          );
+        })
+      ),
+      h('div', { className: 'sidebar-user' },
+        user && h(React.Fragment, {},
+          h('div', { className: 'user-avatar' },
+            user.images?.[0]?.url ? h('img', { src: user.images[0].url, alt: '' }) : h('span', {}, (user.display_name||'?')[0])
+          ),
+          h('div', { className: 'user-name' }, user.display_name),
+          h('button', { className: 'logout-btn', onClick: logout }, 'Sign out')
+        )
+      )
+    ),
 
-          <div className="topbar-actions">
-            <button className="action-btn" onClick={openImport}>
-              {Svg.import} Import
-            </button>
-            {pl && (
-              <>
-                <button className="action-btn" onClick={shuffleAlbums}>
-                  {Svg.shuffle} Shuffle
-                </button>
-                <button className="action-btn primary" onClick={syncToSpotify} disabled={syncing || pl.albums.length === 0}>
-                  {Svg.sync} {syncing ? 'Syncing…' : 'Sync to Spotify'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+    // Main
+    h('div', { className: 'main' },
 
-        {/* Content */}
-        <div className="content">
-          {!pl ? (
-            <div className="no-selection">
-              {Svg.music}
-              <h2>No playlist selected</h2>
-              <p>Create a new album playlist or pick one from the sidebar to get started.</p>
-              <button className="action-btn primary" style={{marginTop:'8px'}} onClick={() => setShowNewModal(true)}>
-                {Svg.plus} Create playlist
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="pl-header">
-                <div className="pl-cover">
-                  {coverImgs.length >= 4 ? (
-                    <div className="pl-cover-grid">
-                      {coverImgs.slice(0,4).map((u,i) => <img key={i} src={u} alt="" />)}
-                    </div>
-                  ) : coverImgs.length > 0 ? (
-                    <img src={coverImgs[0]} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} />
-                  ) : <span>{Svg.music}</span>}
-                </div>
-                <div className="pl-meta">
-                  <div className="pl-type">Album playlist</div>
-                  <div className="pl-title">
-                    <input
-                      value={pl.name}
-                      onChange={e => renamePlaylist(pl.id, e.target.value)}
-                      aria-label="Playlist name"
-                    />
-                  </div>
-                  <div className="pl-stats">
-                    {pl.albums.length} album{pl.albums.length !== 1?'s':''} ·{' '}
-                    {pl.albums.reduce((s,a) => s + (a.total_tracks||0), 0)} tracks
-                  </div>
-                </div>
-                <button
-                  style={{marginLeft:'auto',color:'var(--text3)'}}
-                  className="icon-btn"
-                  onClick={() => { if (confirm(`Delete "${pl.name}"?`)) deletePlaylist(pl.id); }}
-                  aria-label="Delete playlist"
-                >
-                  {Svg.trash}
-                </button>
-              </div>
+      // Topbar
+      h('div', { className: 'topbar' },
+        h('div', { className: 'search-wrap' },
+          h('svg', { className: 'search-icon', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
+            h('circle', { cx: 11, cy: 11, r: 8 }), h('line', { x1: 21, y1: 21, x2: 16.65, y2: 16.65 })
+          ),
+          h('input', { className: 'search-input', placeholder: 'Search albums to add…', value: searchQuery, onChange: e => setSearchQuery(e.target.value) }),
+          searchResults.length > 0 && h('div', { className: 'search-results' },
+            ...searchResults.map(album =>
+              h('div', { key: album.id, className: 'search-result-item' },
+                album.images?.[2]?.url && h('img', { className: 'search-result-art', src: album.images[2].url, alt: '' }),
+                h('div', { style: { flex: 1, minWidth: 0 } },
+                  h('div', { className: 'search-result-name' }, album.name),
+                  h('div', { className: 'search-result-artist' }, (album.artists||[]).map(a=>a.name).join(', ') + ' · ' + album.total_tracks + ' tracks')
+                ),
+                h('button', { className: 'add-btn-small', onClick: () => addAlbum(album) }, 'Add')
+              )
+            )
+          )
+        ),
+        h('div', { className: 'topbar-actions' },
+          h('button', { className: 'action-btn', onClick: openImport }, 'Import'),
+          pl && h('button', { className: 'action-btn', onClick: shuffleAlbums }, 'Shuffle'),
+          pl && h('button', { className: 'action-btn primary', onClick: syncToSpotify, disabled: syncing || !pl.albums.length }, syncing ? 'Syncing…' : 'Sync to Spotify')
+        )
+      ),
 
-              <div className="album-list">
-                {pl.albums.length === 0 ? (
-                  <div className="empty-state">
-                    {Svg.music}
-                    <h3>No albums yet</h3>
-                    <p>Search for albums above and add them here. They'll play in order when synced to Spotify.</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="album-list-header">
-                      <span>#</span>
-                      <span></span>
-                      <span>Album</span>
-                      <span>Tracks</span>
-                      <span></span>
-                    </div>
-                    {pl.albums.map((album, i) => (
-                      <div
-                        key={album.id}
-                        className={`album-row ${dragging === i ? 'dragging' : ''} ${dragOver === i ? 'drag-over' : ''}`}
-                        draggable
-                        onDragStart={() => onDragStart(i)}
-                        onDragOver={e => onDragOver(e, i)}
-                        onDrop={() => onDrop(i)}
-                        onDragEnd={() => { setDragging(null); setDragOver(null); }}
-                      >
-                        <div className="album-num drag-handle">{Svg.grip}</div>
-                        <div>
-                          {album.images?.[1]?.url || album.images?.[0]?.url
-                            ? <img className="album-art" src={album.images[1]?.url || album.images[0]?.url} alt="" />
-                            : <div className="album-art" style={{display:'flex',alignItems:'center',justifyContent:'center'}}>{Svg.music}</div>
-                          }
-                        </div>
-                        <div className="album-info">
-                          <div className="album-name">{album.name}</div>
-                          <div className="album-artist">{album.artists?.map(a=>a.name).join(', ')}</div>
-                        </div>
-                        <div className="album-tracks">{album.total_tracks} tracks</div>
-                        <div className="album-actions">
-                          <button className="icon-btn" onClick={() => removeAlbum(pl.id, album.id)} aria-label="Remove album">{Svg.trash}</button>
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+      // Content
+      h('div', { className: 'content' },
+        !pl
+          ? h('div', { className: 'no-selection' },
+              h('div', { style: { fontSize: 48 } }, '♫'),
+              h('h2', {}, 'No playlist selected'),
+              h('p', {}, 'Create a new album playlist or pick one from the sidebar.'),
+              h('button', { className: 'action-btn primary', style: { marginTop: 8 }, onClick: () => setShowNew(true) }, '+ Create playlist')
+            )
+          : h(React.Fragment, {},
+              // Playlist header
+              h('div', { className: 'pl-header' },
+                h('div', { className: 'pl-cover' },
+                  coverImgs.length >= 4
+                    ? h('div', { className: 'pl-cover-grid' }, ...coverImgs.slice(0,4).map((u,i) => h('img', { key: i, src: u, alt: '' })))
+                    : coverImgs.length > 0
+                      ? h('img', { src: coverImgs[0], alt: '', style: { width: '100%', height: '100%', objectFit: 'cover' } })
+                      : h('span', {}, '♫')
+                ),
+                h('div', { className: 'pl-meta' },
+                  h('div', { className: 'pl-type' }, 'Album playlist'),
+                  h('input', { className: 'pl-title-input', value: pl.name, onChange: e => renamePlaylist(pl.id, e.target.value), 'aria-label': 'Playlist name' }),
+                  h('div', { className: 'pl-stats' }, pl.albums.length + ' album' + (pl.albums.length !== 1 ? 's' : '') + ' · ' + pl.albums.reduce((s,a) => s + (a.total_tracks||0), 0) + ' tracks')
+                ),
+                h('button', { className: 'icon-btn', style: { marginLeft: 'auto' }, onClick: () => { if (confirm('Delete "' + pl.name + '"?')) deletePlaylist(pl.id); }, 'aria-label': 'Delete playlist' }, '🗑')
+              ),
 
-      {/* New playlist modal */}
-      {showNewModal && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowNewModal(false)}>
-          <div className="modal">
-            <h2>New album playlist</h2>
-            <input
-              className="modal-input"
-              placeholder="Playlist name…"
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && createPlaylist()}
-              autoFocus
-            />
-            <div className="modal-actions">
-              <button className="action-btn" onClick={() => setShowNewModal(false)}>Cancel</button>
-              <button className="action-btn primary" onClick={createPlaylist}>Create</button>
-            </div>
-          </div>
-        </div>
-      )}
+              // Album list
+              h('div', { className: 'album-list' },
+                pl.albums.length === 0
+                  ? h('div', { className: 'empty-state' },
+                      h('div', { style: { fontSize: 48 } }, '♫'),
+                      h('h3', {}, 'No albums yet'),
+                      h('p', {}, 'Search for albums above and add them here.')
+                    )
+                  : h(React.Fragment, {},
+                      h('div', { className: 'album-list-header' },
+                        h('span', {}, '#'), h('span', {}), h('span', {}, 'Album'), h('span', {}, 'Tracks'), h('span', {})
+                      ),
+                      ...pl.albums.map((album, i) =>
+                        h('div', {
+                          key: album.id,
+                          className: 'album-row' + (dragOver === i ? ' drag-over' : ''),
+                          draggable: true,
+                          onDragStart: () => onDragStart(i),
+                          onDragOver: e => onDragOver(e, i),
+                          onDrop: () => onDrop(i),
+                          onDragEnd: () => { setDragIdx(null); setDragOver(null); }
+                        },
+                          h('div', { style: { color: 'var(--text3)', textAlign: 'center', fontSize: 13 } }, '⠿'),
+                          h('div', {},
+                            (album.images?.[1]?.url || album.images?.[0]?.url)
+                              ? h('img', { className: 'album-art', src: album.images[1]?.url || album.images[0]?.url, alt: '' })
+                              : h('div', { className: 'album-art', style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } }, '♫')
+                          ),
+                          h('div', { style: { minWidth: 0 } },
+                            h('div', { className: 'album-name' }, album.name),
+                            h('div', { className: 'album-artist' }, (album.artists||[]).map(a=>a.name).join(', '))
+                          ),
+                          h('div', { className: 'album-tracks' }, album.total_tracks + ' tracks'),
+                          h('div', { style: { display: 'flex', justifyContent: 'flex-end' } },
+                            h('button', { className: 'icon-btn', onClick: () => removeAlbum(pl.id, album.id), 'aria-label': 'Remove' }, '🗑')
+                          )
+                        )
+                      )
+                    )
+              )
+            )
+      )
+    ),
 
-      {/* Import modal */}
-      {showImport && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowImport(false)}>
-          <div className="modal">
-            <h2>Import from Spotify</h2>
-            {importResults ? (
-              <>
-                <p style={{fontSize:'13px',color:'var(--text2)',marginBottom:'12px'}}>Found {importResults.length} albums — added to your playlists.</p>
-                <div className="scrollable">
-                  {importResults.map(a => (
-                    <div key={a.id} className="import-result-item">
-                      {a.images?.[2]?.url && <img className="import-result-art" src={a.images[2].url} alt="" />}
-                      <div>
-                        <div style={{fontSize:'13px',fontWeight:600}}>{a.name}</div>
-                        <div style={{fontSize:'11px',color:'var(--text2)'}}>{a.artists?.map(x=>x.name).join(', ')}</div>
-                      </div>
-                      <span className="import-check">✓</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="modal-actions" style={{marginTop:'16px'}}>
-                  <button className="action-btn primary" onClick={() => setShowImport(false)}>Done</button>
-                </div>
-              </>
-            ) : importLoading ? (
-              <div style={{textAlign:'center',padding:'24px',color:'var(--text2)',fontSize:'13px'}}>Grouping tracks by album…</div>
-            ) : (
-              <>
-                <p style={{fontSize:'13px',color:'var(--text2)',marginBottom:'12px'}}>Pick a Spotify playlist to import. Tracks will be grouped into albums.</p>
-                <div className="scrollable">
-                  {spotifyPlaylists.map(sp => (
-                    <div key={sp.id} className="import-result-item" style={{cursor:'pointer'}} onClick={() => importPlaylist(sp)}>
-                      {sp.images?.[0]?.url && <img className="import-result-art" src={sp.images[0].url} alt="" />}
-                      <div>
-                        <div style={{fontSize:'13px',fontWeight:600}}>{sp.name}</div>
-                        <div style={{fontSize:'11px',color:'var(--text2)'}}>{sp.tracks?.total} tracks</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="modal-actions" style={{marginTop:'16px'}}>
-                  <button className="action-btn" onClick={() => setShowImport(false)}>Cancel</button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+    // New playlist modal
+    showNew && h('div', { className: 'modal-overlay', onClick: e => e.target === e.currentTarget && setShowNew(false) },
+      h('div', { className: 'modal' },
+        h('h2', {}, 'New album playlist'),
+        h('input', { className: 'modal-input', placeholder: 'Playlist name…', value: newName, autoFocus: true, onChange: e => setNewName(e.target.value), onKeyDown: e => e.key === 'Enter' && createPlaylist() }),
+        h('div', { className: 'modal-actions' },
+          h('button', { className: 'action-btn', onClick: () => setShowNew(false) }, 'Cancel'),
+          h('button', { className: 'action-btn primary', onClick: createPlaylist }, 'Create')
+        )
+      )
+    ),
 
-      {toast && <div className="toast">{toast}</div>}
-    </div>
+    // Import modal
+    showImport && h('div', { className: 'modal-overlay', onClick: e => e.target === e.currentTarget && setShowImport(false) },
+      h('div', { className: 'modal' },
+        h('h2', {}, 'Import from Spotify'),
+        importLoading
+          ? h('div', { style: { textAlign: 'center', padding: '24px', color: 'var(--text2)', fontSize: '13px' } }, 'Grouping tracks by album…')
+          : importAlbums
+            ? h(React.Fragment, {},
+                h('p', { style: { fontSize: '13px', color: 'var(--text2)', marginBottom: '12px' } }, 'Found ' + importAlbums.length + ' albums — added to your playlists.'),
+                h('div', { className: 'scrollable' },
+                  ...importAlbums.map(a => h('div', { key: a.id, className: 'import-item' },
+                    a.images?.[2]?.url && h('img', { className: 'import-art', src: a.images[2].url, alt: '' }),
+                    h('div', {},
+                      h('div', { style: { fontWeight: 600 } }, a.name),
+                      h('div', { style: { fontSize: '11px', color: 'var(--text2)' } }, (a.artists||[]).map(x=>x.name).join(', '))
+                    ),
+                    h('span', { style: { marginLeft: 'auto', color: 'var(--green)', fontWeight: 700 } }, '✓')
+                  ))
+                ),
+                h('div', { className: 'modal-actions', style: { marginTop: '16px' } },
+                  h('button', { className: 'action-btn primary', onClick: () => setShowImport(false) }, 'Done')
+                )
+              )
+            : h(React.Fragment, {},
+                h('p', { style: { fontSize: '13px', color: 'var(--text2)', marginBottom: '12px' } }, 'Pick a Spotify playlist to import. Tracks will be grouped into albums.'),
+                h('div', { className: 'scrollable' },
+                  ...spotifyPls.map(sp => h('div', { key: sp.id, className: 'import-item', onClick: () => importPlaylist(sp) },
+                    sp.images?.[0]?.url && h('img', { className: 'import-art', src: sp.images[0].url, alt: '' }),
+                    h('div', {},
+                      h('div', { style: { fontWeight: 600 } }, sp.name),
+                      h('div', { style: { fontSize: '11px', color: 'var(--text2)' } }, (sp.tracks?.total||0) + ' tracks')
+                    )
+                  ))
+                ),
+                h('div', { className: 'modal-actions', style: { marginTop: '16px' } },
+                  h('button', { className: 'action-btn', onClick: () => setShowImport(false) }, 'Cancel')
+                )
+              )
+      )
+    ),
+
+    toast && h('div', { className: 'toast' }, toast)
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+ReactDOM.createRoot(document.getElementById('root')).render(h(App, {}));
 </script>
 </body>
 </html>
