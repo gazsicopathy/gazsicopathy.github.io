@@ -78,8 +78,8 @@
     .pl-title-input:focus { border-bottom-color: var(--green); }
     .pl-stats { font-size: 13px; color: var(--text2); margin-top: 6px; }
     .album-list { padding: 16px 24px; }
-    .album-list-header { display: grid; grid-template-columns: 32px 60px 1fr 100px 40px; gap: 12px; padding: 0 8px 8px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 4px; }
-    .album-row { display: grid; grid-template-columns: 32px 60px 1fr 100px 40px; gap: 12px; padding: 6px 8px; border-radius: var(--radius); align-items: center; transition: background 0.1s; cursor: grab; }
+    .album-list-header { display: grid; grid-template-columns: 32px 60px 1fr 100px 72px; gap: 12px; padding: 0 8px 8px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 4px; }
+    .album-row { display: grid; grid-template-columns: 32px 60px 1fr 100px 72px; gap: 12px; padding: 6px 8px; border-radius: var(--radius); align-items: center; transition: background 0.1s; cursor: grab; }
     .album-row:hover { background: var(--bg3); }
     .album-row.drag-over { background: var(--bg4); outline: 1px solid var(--green); }
     .album-art { width: 56px; height: 56px; border-radius: 4px; object-fit: cover; background: var(--bg4); }
@@ -117,6 +117,31 @@
     /* Toast */
     .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--bg3); border: 1px solid var(--green); color: var(--text); font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 20px; z-index: 300; white-space: nowrap; }
 
+    /* Player bar */
+    .player-bar { height: 80px; min-height: 80px; background: var(--bg2); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 16px; flex-shrink: 0; }
+    .player-art { width: 52px; height: 52px; border-radius: 4px; object-fit: cover; background: var(--bg4); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden; }
+    .player-art img { width: 100%; height: 100%; object-fit: cover; }
+    .player-track { min-width: 0; flex: 1; max-width: 220px; }
+    .player-track-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-track-album { font-size: 11px; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-controls { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; max-width: 400px; }
+    .player-buttons { display: flex; align-items: center; gap: 12px; }
+    .player-btn { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text2); transition: all 0.15s; font-size: 14px; }
+    .player-btn:hover { color: var(--text); }
+    .player-btn.play { width: 36px; height: 36px; background: var(--text); border-radius: 50%; color: #000; font-size: 16px; }
+    .player-btn.play:hover { transform: scale(1.06); background: #fff; }
+    .player-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .progress-wrap { width: 100%; display: flex; align-items: center; gap: 8px; }
+    .progress-time { font-size: 11px; color: var(--text3); min-width: 32px; }
+    .progress-time.right { text-align: right; }
+    .progress-bar { flex: 1; height: 4px; background: var(--bg4); border-radius: 2px; cursor: pointer; position: relative; }
+    .progress-fill { height: 100%; background: var(--text2); border-radius: 2px; transition: width 0.5s linear; }
+    .progress-bar:hover .progress-fill { background: var(--green); }
+    .player-no-device { font-size: 12px; color: var(--text3); text-align: center; flex: 1; }
+    .playing-indicator { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; animation: pulse 1.5s ease infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+    .album-row.now-playing { background: rgba(29,185,84,0.08); }
+
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
@@ -130,7 +155,7 @@
 const CLIENT_ID = 'd18c67119478426581be794900feea54';
 const REDIRECT_URI = 'https://gazsicopathy.github.io/spotify-callback/';
 const APP_URL = 'https://gazsicopathy.github.io/albumify/';
-const SCOPES = 'user-read-private user-read-email playlist-read-private playlist-modify-public playlist-modify-private';
+const SCOPES = 'user-read-private user-read-email playlist-read-private playlist-modify-public playlist-modify-private user-read-playback-state user-modify-playback-state user-read-currently-playing';
 
 // PKCE helpers
 function generateCodeVerifier() {
@@ -255,7 +280,48 @@ function App() {
   const [dragOver, setDragOver] = useState(null);
   const searchTimer = useRef(null);
 
+  const [playback, setPlayback] = useState(null);
+  const pollRef = useRef(null);
+
+  const fetchPlayback = async () => {
+    const data = await api('https://api.spotify.com/v1/me/player');
+    if (data && data.item) setPlayback(data);
+    else setPlayback(null);
+  };
+
+  // Poll playback every 3s when logged in
+  useEffect(() => {
+    if (!token) return;
+    fetchPlayback();
+    pollRef.current = setInterval(fetchPlayback, 3000);
+    return () => clearInterval(pollRef.current);
+  }, [token]);
+
+  const playerCmd = async (endpoint, method = 'PUT', body = null) => {
+    const token = await getToken();
+    await fetch('https://api.spotify.com/v1/me/player/' + endpoint, {
+      method,
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    setTimeout(fetchPlayback, 500);
+  };
+
+  const playAlbum = async (albumId) => {
+    await playerCmd('play', 'PUT', { context_uri: 'spotify:album:' + albumId });
+    setTimeout(fetchPlayback, 800);
+  };
+
+  const formatMs = (ms) => {
+    if (!ms) return '0:00';
+    const s = Math.floor(ms / 1000);
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  };
+
+  const nowPlayingAlbumId = playback?.item?.album?.id;
+
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+
 
   // Handle OAuth callback
   useEffect(() => {
@@ -400,7 +466,10 @@ function App() {
   const pl = activePl;
   const coverImgs = pl?.albums?.slice(0,4).map(a => a.images?.[1]?.url || a.images?.[0]?.url).filter(Boolean) || [];
 
-  return h('div', { className: 'app' },
+  const progress = playback ? (playback.progress_ms / playback.item.duration_ms) * 100 : 0;
+
+  return h('div', { style: { display: 'flex', flexDirection: 'column', height: '100vh' } },
+    h('div', { className: 'app', style: { flex: 1, minHeight: 0 } },
 
     // Sidebar
     h('div', { className: 'sidebar' },
@@ -504,7 +573,7 @@ function App() {
                       ...pl.albums.map((album, i) =>
                         h('div', {
                           key: album.id,
-                          className: 'album-row' + (dragOver === i ? ' drag-over' : ''),
+                          className: 'album-row' + (dragOver === i ? ' drag-over' : '') + (nowPlayingAlbumId === album.id ? ' now-playing' : ''),
                           draggable: true,
                           onDragStart: () => onDragStart(i),
                           onDragOver: e => onDragOver(e, i),
@@ -522,7 +591,9 @@ function App() {
                             h('div', { className: 'album-artist' }, (album.artists||[]).map(a=>a.name).join(', '))
                           ),
                           h('div', { className: 'album-tracks' }, album.total_tracks + ' tracks'),
-                          h('div', { style: { display: 'flex', justifyContent: 'flex-end' } },
+                          h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: '4px', alignItems: 'center' } },
+                            nowPlayingAlbumId === album.id && h('div', { className: 'playing-indicator', title: 'Now playing' }),
+                            h('button', { className: 'icon-btn', title: 'Play this album', onClick: (e) => { e.stopPropagation(); playAlbum(album.id); } }, '▶'),
                             h('button', { className: 'icon-btn', onClick: () => removeAlbum(pl.id, album.id), 'aria-label': 'Remove' }, '🗑')
                           )
                         )
@@ -533,8 +604,7 @@ function App() {
       )
     ),
 
-    // New playlist modal
-    showNew && h('div', { className: 'modal-overlay', onClick: e => e.target === e.currentTarget && setShowNew(false) },
+    // New playlist modal    showNew && h('div', { className: 'modal-overlay', onClick: e => e.target === e.currentTarget && setShowNew(false) },
       h('div', { className: 'modal' },
         h('h2', {}, 'New album playlist'),
         h('input', { className: 'modal-input', placeholder: 'Playlist name…', value: newName, autoFocus: true, onChange: e => setNewName(e.target.value), onKeyDown: e => e.key === 'Enter' && createPlaylist() }),
@@ -587,7 +657,55 @@ function App() {
     ),
 
     toast && h('div', { className: 'toast' }, toast)
-  );
+  ), // close .app div
+
+  // Player bar
+  token && h('div', { className: 'player-bar' },
+    playback && playback.item
+      ? h(React.Fragment, {},
+          // Art + track info
+          h('div', { className: 'player-art' },
+            playback.item.album?.images?.[2]?.url
+              ? h('img', { src: playback.item.album.images[2].url, alt: '' })
+              : '♫'
+          ),
+          h('div', { className: 'player-track' },
+            h('div', { className: 'player-track-name' }, playback.item.name),
+            h('div', { className: 'player-track-album' },
+              (playback.item.artists||[]).map(a=>a.name).join(', ') + ' · ' + (playback.item.album?.name || '')
+            )
+          ),
+          // Controls + progress
+          h('div', { className: 'player-controls' },
+            h('div', { className: 'player-buttons' },
+              h('button', { className: 'player-btn', title: 'Previous', onClick: () => playerCmd('previous', 'POST') }, '⏮'),
+              h('button', {
+                className: 'player-btn play',
+                title: playback.is_playing ? 'Pause' : 'Play',
+                onClick: () => playerCmd(playback.is_playing ? 'pause' : 'play')
+              }, playback.is_playing ? '⏸' : '▶'),
+              h('button', { className: 'player-btn', title: 'Next', onClick: () => playerCmd('next', 'POST') }, '⏭')
+            ),
+            h('div', { className: 'progress-wrap' },
+              h('span', { className: 'progress-time' }, formatMs(playback.progress_ms)),
+              h('div', { className: 'progress-bar',
+                onClick: (e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const pct = (e.clientX - rect.left) / rect.width;
+                  playerCmd('seek?position_ms=' + Math.floor(pct * playback.item.duration_ms));
+                }
+              },
+                h('div', { className: 'progress-fill', style: { width: progress.toFixed(1) + '%' } })
+              ),
+              h('span', { className: 'progress-time right' }, formatMs(playback.item.duration_ms))
+            )
+          )
+        )
+      : h('div', { className: 'player-no-device' },
+          '▶  Open Spotify on any device to enable playback controls'
+        )
+  )
+  ); // close outer wrapper
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(h(App, {}));
