@@ -12,7 +12,7 @@
       --text: #ffffff; --text2: #b3b3b3; --text3: #6a6a6a;
       --border: rgba(255,255,255,0.08);
       --radius: 8px; --radius-lg: 12px;
-      --player-h: 80px;
+      --player-h: 110px;
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
     html, body, #root { height: 100%; }
@@ -68,7 +68,7 @@
     .action-btn.icon-only { padding: 7px 9px; }
 
     /* ── Search results ── */
-    .search-results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); z-index: 100; max-height: 60vh; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+    .search-results { position: fixed; top: 62px; left: 8px; right: 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); z-index: 120; max-height: 60vh; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
     .search-result-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background 0.1s; border-bottom: 1px solid var(--border); }
     .search-result-item:last-child { border-bottom: none; }
     .search-result-item:active { background: var(--bg4); }
@@ -658,6 +658,7 @@ function App() {
                           key: album.id,
                           className: 'album-row' + (dragOver === i ? ' drag-over' : '') + (isPlaying ? ' now-playing' : ''),
                           draggable: true,
+                          onClick: () => playAlbum(album.id),
                           onDragStart: () => onDragStart(i),
                           onDragOver: e => onDragOver(e, i),
                           onDrop: () => onDrop(i),
@@ -673,8 +674,7 @@ function App() {
                           ),
                           h('div', { className: 'album-actions' },
                             isPlaying && h('div', { className: 'playing-dot' }),
-                            h('button', { className: 'icon-btn', title: 'Play album', onClick: e => { e.stopPropagation(); playAlbum(album.id); } }, '▶'),
-                            h('button', { className: 'icon-btn', title: 'Remove', onClick: () => removeAlbum(pl.id, album.id) }, '🗑')
+                            h('button', { className: 'icon-btn', title: 'Remove', onClick: e => { e.stopPropagation(); removeAlbum(pl.id, album.id); } }, '🗑')
                           )
                         );
                       })
