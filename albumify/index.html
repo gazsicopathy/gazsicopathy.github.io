@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Albumify</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -12,135 +12,173 @@
       --text: #ffffff; --text2: #b3b3b3; --text3: #6a6a6a;
       --border: rgba(255,255,255,0.08);
       --radius: 8px; --radius-lg: 12px;
+      --player-h: 80px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
     html, body, #root { height: 100%; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
-    button { cursor: pointer; border: none; background: none; color: inherit; font: inherit; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
+    button { cursor: pointer; border: none; background: none; color: inherit; font: inherit; -webkit-tap-highlight-color: transparent; }
     input { font: inherit; }
     img { display: block; }
 
-    .layout { display: flex; flex-direction: column; height: 100vh; }
+    /* ── Layout ── */
+    .layout { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
     .app { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 
-    .sidebar { width: 260px; min-width: 260px; background: var(--bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    /* ── Sidebar (desktop) ── */
+    .sidebar { width: 260px; min-width: 260px; background: var(--bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; transition: transform 0.25s ease; }
     .sidebar-header { padding: 20px 16px 12px; border-bottom: 1px solid var(--border); }
     .logo { font-size: 22px; font-weight: 800; color: var(--green); letter-spacing: -0.5px; margin-bottom: 16px; }
-    .new-pl-btn { width: 100%; background: var(--green); color: #000; font-weight: 700; font-size: 13px; padding: 8px 12px; border-radius: var(--radius); display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
+    .new-pl-btn { width: 100%; background: var(--green); color: #000; font-weight: 700; font-size: 13px; padding: 10px 12px; border-radius: var(--radius); display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
     .new-pl-btn:hover { background: #1ed760; }
     .pl-list { flex: 1; overflow-y: auto; padding: 8px 0; }
-    .pl-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; cursor: pointer; transition: background 0.1s; }
+    .pl-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; cursor: pointer; transition: background 0.1s; }
     .pl-item:hover, .pl-item.active { background: var(--bg3); }
-    .pl-item-icon { width: 36px; height: 36px; background: var(--bg4); border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; overflow: hidden; }
-    .pl-item-icon img { width: 36px; height: 36px; object-fit: cover; }
+    .pl-item-icon { width: 40px; height: 40px; background: var(--bg4); border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; overflow: hidden; }
+    .pl-item-icon img { width: 40px; height: 40px; object-fit: cover; }
     .pl-item-name { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
-    .pl-item-count { font-size: 11px; color: var(--text3); margin-top: 1px; }
+    .pl-item-count { font-size: 11px; color: var(--text3); margin-top: 2px; }
     .sidebar-user { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; font-size: 13px; }
-    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--bg4); overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--bg4); overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; }
     .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .user-name { font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .logout-btn { color: var(--text3); font-size: 11px; text-decoration: underline; }
-    .logout-btn:hover { color: var(--text); }
+    .logout-btn { color: var(--text3); font-size: 11px; text-decoration: underline; padding: 4px; }
 
-    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-    .topbar { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-shrink: 0; flex-wrap: wrap; }
-    .search-wrap { flex: 1; max-width: 420px; position: relative; min-width: 200px; }
-    .search-input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 20px; padding: 8px 12px 8px 34px; color: var(--text); font-size: 13px; outline: none; transition: border-color 0.15s; }
+    /* ── Mobile drawer overlay ── */
+    .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 150; }
+    .drawer-overlay.open { display: block; }
+
+    /* ── Main ── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+    /* ── Topbar ── */
+    .topbar { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .topbar-menu-btn { width: 36px; height: 36px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; color: var(--text2); font-size: 20px; flex-shrink: 0; }
+    .search-wrap { flex: 1; position: relative; }
+    .search-input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 20px; padding: 9px 12px 9px 34px; color: var(--text); font-size: 14px; outline: none; transition: border-color 0.15s; }
     .search-input::placeholder { color: var(--text3); }
     .search-input:focus { border-color: var(--green); }
-    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text3); }
-    .topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
-    .action-btn { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 7px 14px; font-size: 13px; font-weight: 600; color: var(--text2); display: flex; align-items: center; gap: 6px; transition: all 0.15s; }
-    .action-btn:hover { background: var(--bg4); color: var(--text); }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text3); font-size: 15px; }
+    .topbar-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .action-btn { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 7px 12px; font-size: 13px; font-weight: 600; color: var(--text2); display: flex; align-items: center; gap: 5px; transition: all 0.15s; white-space: nowrap; }
+    .action-btn:hover, .action-btn:active { background: var(--bg4); color: var(--text); }
     .action-btn.primary { background: var(--green); color: #000; border-color: var(--green); }
     .action-btn.primary:hover { background: #1ed760; }
     .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .action-btn.icon-only { padding: 7px 9px; }
 
-    .search-results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); z-index: 100; max-height: 360px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+    /* ── Search results ── */
+    .search-results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); z-index: 100; max-height: 60vh; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
     .search-result-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background 0.1s; border-bottom: 1px solid var(--border); }
     .search-result-item:last-child { border-bottom: none; }
-    .search-result-item:hover { background: var(--bg4); }
+    .search-result-item:active { background: var(--bg4); }
     .search-result-art { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
     .search-result-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .search-result-artist { font-size: 11px; color: var(--text2); margin-top: 2px; }
-    .add-btn-small { background: var(--green); color: #000; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; flex-shrink: 0; }
-    .add-btn-small:hover { background: #1ed760; }
+    .add-btn-small { background: var(--green); color: #000; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 20px; flex-shrink: 0; }
 
-    .content { flex: 1; overflow-y: auto; }
-    .pl-header { padding: 24px; background: linear-gradient(180deg, #1a2a1a 0%, var(--bg2) 100%); display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; }
-    .pl-cover { width: 120px; height: 120px; border-radius: var(--radius); background: var(--bg4); display: flex; align-items: center; justify-content: center; font-size: 40px; flex-shrink: 0; overflow: hidden; }
-    .pl-cover-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; width: 120px; height: 120px; overflow: hidden; }
+    /* ── Content ── */
+    .content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .pl-header { padding: 20px 16px; background: linear-gradient(180deg, #1a2a1a 0%, var(--bg2) 100%); display: flex; gap: 16px; align-items: flex-end; }
+    .pl-cover { width: 100px; height: 100px; border-radius: var(--radius); background: var(--bg4); display: flex; align-items: center; justify-content: center; font-size: 36px; flex-shrink: 0; overflow: hidden; }
+    .pl-cover-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; width: 100px; height: 100px; overflow: hidden; border-radius: var(--radius); }
     .pl-cover-grid img { width: 100%; height: 100%; object-fit: cover; }
     .pl-meta { min-width: 0; flex: 1; }
-    .pl-type { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); margin-bottom: 4px; }
-    .pl-title-input { background: transparent; border: none; outline: none; color: var(--text); font-size: 28px; font-weight: 800; letter-spacing: -0.5px; width: 100%; border-bottom: 2px solid transparent; transition: border-color 0.15s; }
+    .pl-type { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); margin-bottom: 4px; }
+    .pl-title-input { background: transparent; border: none; outline: none; color: var(--text); font-size: 22px; font-weight: 800; letter-spacing: -0.5px; width: 100%; border-bottom: 2px solid transparent; transition: border-color 0.15s; }
     .pl-title-input:focus { border-bottom-color: var(--green); }
-    .pl-stats { font-size: 13px; color: var(--text2); margin-top: 6px; }
+    .pl-stats { font-size: 12px; color: var(--text2); margin-top: 4px; }
 
-    .album-list { padding: 16px 24px; }
-    .album-list-header { display: grid; grid-template-columns: 32px 60px 1fr 100px 80px; gap: 12px; padding: 0 8px 8px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 4px; }
-    .album-row { display: grid; grid-template-columns: 32px 60px 1fr 100px 80px; gap: 12px; padding: 6px 8px; border-radius: var(--radius); align-items: center; transition: background 0.1s; cursor: grab; }
-    .album-row:hover { background: var(--bg3); }
+    /* ── Album list ── */
+    .album-list { padding: 8px 0 120px; }
+    .album-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 0; transition: background 0.1s; }
+    .album-row:active { background: var(--bg3); }
     .album-row.drag-over { background: var(--bg4); outline: 1px solid var(--green); }
     .album-row.now-playing { background: rgba(29,185,84,0.08); }
-    .album-art { width: 56px; height: 56px; border-radius: 4px; object-fit: cover; background: var(--bg4); }
+    .album-art { width: 52px; height: 52px; border-radius: 4px; object-fit: cover; background: var(--bg4); flex-shrink: 0; }
+    .album-info { flex: 1; min-width: 0; }
     .album-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .album-artist { font-size: 12px; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .album-tracks { font-size: 13px; color: var(--text2); }
-    .icon-btn { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text3); transition: all 0.1s; font-size: 13px; }
-    .icon-btn:hover { background: var(--bg4); color: var(--text); }
+    .album-tracks-label { font-size: 11px; color: var(--text3); margin-top: 2px; }
+    .album-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+    .icon-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text3); transition: all 0.1s; font-size: 14px; }
+    .icon-btn:active { background: var(--bg4); color: var(--text); }
+    .playing-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; animation: pulse 1.5s ease infinite; margin-right: 4px; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-    .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 20px; text-align: center; padding: 24px; }
-    .login-logo { font-size: 48px; font-weight: 900; color: var(--green); letter-spacing: -2px; }
-    .login-sub { font-size: 16px; color: var(--text2); max-width: 300px; line-height: 1.5; }
-    .login-btn { background: var(--green); color: #000; font-weight: 800; font-size: 15px; padding: 14px 32px; border-radius: 30px; margin-top: 8px; transition: all 0.15s; }
-    .login-btn:hover { background: #1ed760; transform: scale(1.02); }
-
+    /* ── No selection / empty ── */
     .empty-state, .no-selection { display: flex; flex-direction: column; align-items: center; padding: 60px 24px; color: var(--text3); gap: 8px; text-align: center; }
     .no-selection { flex: 1; justify-content: center; }
     .empty-state h3, .no-selection h2 { font-size: 16px; color: var(--text2); }
-    .empty-state p, .no-selection p { font-size: 13px; max-width: 280px; line-height: 1.5; }
+    .empty-state p, .no-selection p { font-size: 13px; max-width: 260px; line-height: 1.5; }
 
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 200; }
-    .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; width: 480px; max-width: calc(100vw - 32px); max-height: 80vh; overflow-y: auto; }
-    .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
-    .modal-input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; margin-bottom: 16px; }
+    /* ── Login ── */
+    .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 20px; text-align: center; padding: 24px; }
+    .login-logo { font-size: 52px; font-weight: 900; color: var(--green); letter-spacing: -2px; }
+    .login-sub { font-size: 16px; color: var(--text2); max-width: 280px; line-height: 1.5; }
+    .login-btn { background: var(--green); color: #000; font-weight: 800; font-size: 16px; padding: 16px 40px; border-radius: 30px; margin-top: 8px; transition: all 0.15s; }
+    .login-btn:active { background: #1ed760; transform: scale(0.98); }
+
+    /* ── Player bar ── */
+    .player-bar { background: var(--bg2); border-top: 1px solid var(--border); flex-shrink: 0; padding-bottom: var(--safe-bottom); }
+    .player-inner { display: flex; align-items: center; padding: 10px 16px; gap: 12px; height: var(--player-h); }
+    .player-art { width: 48px; height: 48px; border-radius: 4px; object-fit: cover; background: var(--bg4); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden; }
+    .player-art img { width: 100%; height: 100%; object-fit: cover; }
+    .player-track { min-width: 0; flex: 1; }
+    .player-track-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-track-sub { font-size: 11px; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-controls { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+    .player-buttons { display: flex; align-items: center; gap: 4px; }
+    .player-btn { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text2); transition: all 0.15s; font-size: 14px; -webkit-tap-highlight-color: transparent; }
+    .player-btn:active { color: var(--text); background: var(--bg4); }
+    .player-btn.play { width: 44px; height: 44px; background: var(--text); border-radius: 50%; color: #000; font-size: 16px; }
+    .player-btn.play:active { transform: scale(0.95); }
+    .player-btn.sm { font-size: 11px; opacity: 0.65; width: 32px; height: 32px; }
+    .player-btn:disabled { opacity: 0.25; pointer-events: none; }
+    .progress-wrap { display: flex; align-items: center; gap: 6px; width: 100%; }
+    .progress-time { font-size: 10px; color: var(--text3); min-width: 28px; }
+    .progress-time.right { text-align: right; }
+    .progress-bar { flex: 1; height: 3px; background: var(--bg4); border-radius: 2px; cursor: pointer; }
+    .progress-fill { height: 100%; background: var(--text3); border-radius: 2px; transition: width 0.5s linear; pointer-events: none; }
+    .progress-bar:active .progress-fill { background: var(--green); }
+    .player-no-device { font-size: 12px; color: var(--text3); flex: 1; text-align: center; padding: 0 8px; }
+
+    /* ── Modal ── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: flex-end; justify-content: center; z-index: 200; }
+    .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 24px 20px calc(24px + var(--safe-bottom)); width: 100%; max-height: 85vh; overflow-y: auto; }
+    .modal h2 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+    .modal-input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; color: var(--text); font-size: 15px; outline: none; margin-bottom: 16px; }
     .modal-input:focus { border-color: var(--green); }
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
-    .import-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
-    .import-item:hover { opacity: 0.8; }
-    .import-art { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: var(--bg4); }
-    .scrollable { overflow-y: auto; max-height: 320px; }
+    .import-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .import-item:active { opacity: 0.7; }
+    .import-art { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: var(--bg4); }
+    .scrollable { overflow-y: auto; max-height: 50vh; -webkit-overflow-scrolling: touch; }
 
-    .toast { position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%); background: var(--bg3); border: 1px solid var(--green); color: var(--text); font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 20px; z-index: 300; white-space: nowrap; }
+    /* ── Toast ── */
+    .toast { position: fixed; bottom: calc(var(--player-h) + var(--safe-bottom) + 12px); left: 50%; transform: translateX(-50%); background: var(--bg3); border: 1px solid var(--green); color: var(--text); font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 20px; z-index: 300; white-space: nowrap; pointer-events: none; }
 
-    /* Player bar */
-    .player-bar { height: 80px; min-height: 80px; background: var(--bg2); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 16px; flex-shrink: 0; }
-    .player-art { width: 52px; height: 52px; border-radius: 4px; object-fit: cover; background: var(--bg4); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden; }
-    .player-art img { width: 100%; height: 100%; object-fit: cover; }
-    .player-track { min-width: 0; flex: 1; max-width: 220px; }
-    .player-track-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .player-track-album { font-size: 11px; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .player-controls { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; max-width: 400px; }
-    .player-buttons { display: flex; align-items: center; gap: 12px; }
-    .player-btn { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text2); transition: all 0.15s; font-size: 15px; }
-    .player-btn.track-btn { font-size: 12px; opacity: 0.7; }
-    .player-btn.album-btn { font-size: 17px; }
-    .player-btn:hover { color: var(--text); }
-    .player-btn.play { width: 36px; height: 36px; background: var(--text); border-radius: 50%; color: #000; font-size: 14px; }
-    .player-btn.play:hover { transform: scale(1.06); }
-    .progress-wrap { width: 100%; display: flex; align-items: center; gap: 8px; }
-    .progress-time { font-size: 11px; color: var(--text3); min-width: 32px; }
-    .progress-time.right { text-align: right; }
-    .progress-bar { flex: 1; height: 4px; background: var(--bg4); border-radius: 2px; cursor: pointer; }
-    .progress-fill { height: 100%; background: var(--text2); border-radius: 2px; transition: width 0.5s linear; pointer-events: none; }
-    .progress-bar:hover .progress-fill { background: var(--green); }
-    .player-no-device { font-size: 12px; color: var(--text3); flex: 1; text-align: center; }
-    .playing-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; animation: pulse 1.5s ease infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    /* ── Desktop overrides ── */
+    @media (min-width: 640px) {
+      .topbar-menu-btn { display: none; }
+      .sidebar { position: static; transform: none !important; }
+      .drawer-overlay { display: none !important; }
+      .modal-overlay { align-items: center; }
+      .modal { border-radius: var(--radius-lg); width: 480px; max-width: calc(100vw - 32px); padding: 24px; }
+      .album-row { padding: 6px 16px; }
+      .album-list { padding: 8px 0 16px; }
+      .player-inner { padding: 10px 20px; }
+    }
 
-    ::-webkit-scrollbar { width: 6px; }
+    /* ── Mobile sidebar drawer ── */
+    @media (max-width: 639px) {
+      .sidebar { position: fixed; top: 0; left: 0; bottom: 0; z-index: 160; transform: translateX(-100%); width: 280px; min-width: 0; }
+      .sidebar.open { transform: translateX(0); }
+    }
+
+    ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
   </style>
 </head>
 <body>
@@ -171,7 +209,6 @@ function generateState() {
   crypto.getRandomValues(arr);
   return Array.from(arr).map(b => b.toString(16).padStart(2,'0')).join('');
 }
-
 async function startLogin() {
   const verifier = generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
@@ -188,12 +225,10 @@ async function startLogin() {
   url.searchParams.set('state', state);
   window.location.href = url.toString();
 }
-
 async function exchangeCode(code) {
   const verifier = localStorage.getItem('pkce_verifier');
   const res = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ client_id: CLIENT_ID, grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, code_verifier: verifier })
   });
   const data = await res.json();
@@ -201,20 +236,17 @@ async function exchangeCode(code) {
     localStorage.setItem('spotify_access_token', data.access_token);
     localStorage.setItem('spotify_refresh_token', data.refresh_token || '');
     localStorage.setItem('spotify_token_expires', Date.now() + data.expires_in * 1000);
-    localStorage.removeItem('pkce_verifier');
-    localStorage.removeItem('pkce_state');
+    localStorage.removeItem('pkce_verifier'); localStorage.removeItem('pkce_state');
   }
   return data;
 }
-
 async function getToken() {
   const exp = parseInt(localStorage.getItem('spotify_token_expires') || '0');
   if (Date.now() > exp - 60000) {
     const refresh = localStorage.getItem('spotify_refresh_token');
     if (!refresh) return null;
     const res = await fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ client_id: CLIENT_ID, grant_type: 'refresh_token', refresh_token: refresh })
     });
     const data = await res.json();
@@ -227,7 +259,6 @@ async function getToken() {
   }
   return localStorage.getItem('spotify_access_token');
 }
-
 async function api(url, opts) {
   opts = opts || {};
   const token = await getToken();
@@ -237,214 +268,186 @@ async function api(url, opts) {
   if (res.status === 204 || res.status === 202) return null;
   return res.json();
 }
-
 function loadPlaylists() { try { return JSON.parse(localStorage.getItem('albumify_playlists') || '[]'); } catch(e) { return []; } }
 function savePlaylists(p) { localStorage.setItem('albumify_playlists', JSON.stringify(p)); }
 function fmtMs(ms) {
   if (!ms) return '0:00';
-  var s = Math.floor(ms / 1000);
+  const s = Math.floor(ms / 1000);
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 }
 
-var h = React.createElement;
-var useState = React.useState;
-var useEffect = React.useEffect;
-var useRef = React.useRef;
+const h = React.createElement;
+const { useState, useEffect, useRef } = React;
 
 function App() {
-  var token0 = localStorage.getItem('spotify_access_token');
-  var s_token = useState(token0);
-  var token = s_token[0]; var setToken = s_token[1];
+  const [token, setToken] = useState(localStorage.getItem('spotify_access_token'));
+  const [user, setUser] = useState(null);
+  const [playlists, setPlaylists] = useState(loadPlaylists);
+  const [activeId, setActiveId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showNew, setShowNew] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [showImport, setShowImport] = useState(false);
+  const [spotifyPls, setSpotifyPls] = useState([]);
+  const [importAlbums, setImportAlbums] = useState(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [toast, setToast] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOver, setDragOver] = useState(null);
+  const [playback, setPlayback] = useState(null);
+  const [devices, setDevices] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const searchTimer = useRef(null);
+  const pollTimer = useRef(null);
 
-  var s_user = useState(null); var user = s_user[0]; var setUser = s_user[1];
-  var s_pls = useState(loadPlaylists); var playlists = s_pls[0]; var setPlaylists = s_pls[1];
-  var s_active = useState(null); var activeId = s_active[0]; var setActiveId = s_active[1];
-  var s_sq = useState(''); var searchQuery = s_sq[0]; var setSearchQuery = s_sq[1];
-  var s_sr = useState([]); var searchResults = s_sr[0]; var setSearchResults = s_sr[1];
-  var s_sn = useState(false); var showNew = s_sn[0]; var setShowNew = s_sn[1];
-  var s_nn = useState(''); var newName = s_nn[0]; var setNewName = s_nn[1];
-  var s_si = useState(false); var showImport = s_si[0]; var setShowImport = s_si[1];
-  var s_sp = useState([]); var spotifyPls = s_sp[0]; var setSpotifyPls = s_sp[1];
-  var s_ia = useState(null); var importAlbums = s_ia[0]; var setImportAlbums = s_ia[1];
-  var s_il = useState(false); var importLoading = s_il[0]; var setImportLoading = s_il[1];
-  var s_toast = useState(''); var toast = s_toast[0]; var setToast = s_toast[1];
-  var s_sync = useState(false); var syncing = s_sync[0]; var setSyncing = s_sync[1];
-  var s_di = useState(null); var dragIdx = s_di[0]; var setDragIdx = s_di[1];
-  var s_do = useState(null); var dragOver = s_do[0]; var setDragOver = s_do[1];
-  var s_pb = useState(null); var playback = s_pb[0]; var setPlayback = s_pb[1];
-
-  var searchTimer = useRef(null);
-  var pollTimer = useRef(null);
-
-  function showToast(msg) { setToast(msg); setTimeout(function() { setToast(''); }, 3000); }
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
   // OAuth callback
-  useEffect(function() {
-    var params = new URLSearchParams(window.location.search);
-    var code = params.get('code');
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
     if (code) {
-      exchangeCode(code).then(function(data) {
-        if (data.access_token) {
-          setToken(data.access_token);
-          window.history.replaceState({}, '', APP_URL);
-        } else {
-          showToast('Login failed: ' + (data.error || 'unknown'));
-        }
+      exchangeCode(code).then(data => {
+        if (data.access_token) { setToken(data.access_token); window.history.replaceState({}, '', APP_URL); }
+        else showToast('Login failed: ' + (data.error || 'unknown'));
       });
     }
   }, []);
 
-  // Load user
-  useEffect(function() {
+  useEffect(() => {
     if (!token) return;
-    api('https://api.spotify.com/v1/me').then(function(u) { if (u && u.id) setUser(u); });
+    api('https://api.spotify.com/v1/me').then(u => { if (u && u.id) setUser(u); });
   }, [token]);
 
-  // Search albums
-  useEffect(function() {
+  useEffect(() => {
     clearTimeout(searchTimer.current);
     if (!searchQuery.trim() || !token) { setSearchResults([]); return; }
-    searchTimer.current = setTimeout(function() {
+    searchTimer.current = setTimeout(() => {
       api('https://api.spotify.com/v1/search?q=' + encodeURIComponent(searchQuery) + '&type=album&limit=6')
-        .then(function(data) { setSearchResults((data && data.albums && data.albums.items) || []); });
+        .then(data => setSearchResults(data?.albums?.items || []));
     }, 400);
   }, [searchQuery, token]);
 
-  // Playback polling — also fetches devices so we can target paused/idle ones
-  var s_dev = useState(null); var devices = s_dev[0]; var setDevices = s_dev[1];
-
   function fetchPlayback() {
-    // Fetch both player state and available devices in parallel
     Promise.all([
-      api('https://api.spotify.com/v1/me/player').catch(function() { return null; }),
-      api('https://api.spotify.com/v1/me/player/devices').catch(function() { return null; })
-    ]).then(function(results) {
-      var playerData = results[0];
-      var devData = results[1];
-      var devList = (devData && devData.devices) || [];
+      api('https://api.spotify.com/v1/me/player').catch(() => null),
+      api('https://api.spotify.com/v1/me/player/devices').catch(() => null)
+    ]).then(([playerData, devData]) => {
+      const devList = devData?.devices || [];
       setDevices(devList);
       if (playerData && playerData.item) {
         setPlayback(playerData);
       } else {
-        // No active playback but store a stub so the bar shows device info
-        var activeDevice = devList.find(function(d) { return d.is_active; }) || devList[0] || null;
+        const activeDevice = devList.find(d => d.is_active) || devList[0] || null;
         setPlayback(activeDevice ? { item: null, is_playing: false, device: activeDevice, progress_ms: 0 } : null);
       }
     });
   }
 
-  function getBestDeviceId() {
-    if (!devices || !devices.length) return null;
-    var active = devices.find(function(d) { return d.is_active; });
-    return (active || devices[0]).id;
-  }
-
-  useEffect(function() {
+  useEffect(() => {
     if (!token) return;
     fetchPlayback();
     pollTimer.current = setInterval(fetchPlayback, 3000);
-    return function() { clearInterval(pollTimer.current); };
+    return () => clearInterval(pollTimer.current);
   }, [token]);
+
+  function getBestDeviceId() {
+    if (!devices || !devices.length) return null;
+    return (devices.find(d => d.is_active) || devices[0]).id;
+  }
 
   async function playerCmd(endpoint, method, body) {
     method = method || 'PUT';
-    var tok = await getToken();
-    var deviceId = getBestDeviceId();
-    // For play/pause/seek, append device_id as query param if we have one
-    var url = 'https://api.spotify.com/v1/me/player/' + endpoint;
-    if (deviceId && method === 'PUT' && !url.includes('?')) {
-      url += '?device_id=' + deviceId;
-    } else if (deviceId && method === 'PUT') {
-      url += '&device_id=' + deviceId;
-    }
+    const tok = await getToken();
+    const deviceId = getBestDeviceId();
+    let url = 'https://api.spotify.com/v1/me/player/' + endpoint;
+    if (deviceId && method === 'PUT') url += (url.includes('?') ? '&' : '?') + 'device_id=' + deviceId;
     await fetch(url, {
-      method: method,
-      headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+      method, headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined
     });
     setTimeout(fetchPlayback, 700);
   }
 
   function playAlbum(albumId) {
-    var deviceId = getBestDeviceId();
-    var body = { context_uri: 'spotify:album:' + albumId };
+    const deviceId = getBestDeviceId();
+    const body = { context_uri: 'spotify:album:' + albumId };
     if (deviceId) body.device_id = deviceId;
     playerCmd('play', 'PUT', body);
     setTimeout(fetchPlayback, 1000);
   }
 
+  const activePl = playlists.find(p => p.id === activeId);
+  const nowPlayingAlbumId = playback?.item?.album?.id;
+
   function nextAlbum() {
     if (!activePl || !nowPlayingAlbumId) return;
-    var idx = activePl.albums.findIndex(function(a) { return a.id === nowPlayingAlbumId; });
-    if (idx === -1 || idx >= activePl.albums.length - 1) { showToast("Last album in playlist"); return; }
+    const idx = activePl.albums.findIndex(a => a.id === nowPlayingAlbumId);
+    if (idx === -1 || idx >= activePl.albums.length - 1) { showToast('Last album'); return; }
     playAlbum(activePl.albums[idx + 1].id);
     showToast(activePl.albums[idx + 1].name);
   }
 
   function prevAlbum() {
     if (!activePl || !nowPlayingAlbumId) return;
-    var idx = activePl.albums.findIndex(function(a) { return a.id === nowPlayingAlbumId; });
-    if (playback && playback.progress_ms > 3000) { playerCmd("seek?position_ms=0"); return; }
-    if (idx <= 0) { showToast("First album in playlist"); return; }
+    const idx = activePl.albums.findIndex(a => a.id === nowPlayingAlbumId);
+    if (playback && playback.progress_ms > 3000) { playerCmd('seek?position_ms=0'); return; }
+    if (idx <= 0) { showToast('First album'); return; }
     playAlbum(activePl.albums[idx - 1].id);
     showToast(activePl.albums[idx - 1].name);
   }
 
   function persist(pls) { setPlaylists(pls); savePlaylists(pls); }
 
-  var activePl = playlists.find(function(p) { return p.id === activeId; });
-
   function createPlaylist() {
     if (!newName.trim()) return;
-    var pl = { id: crypto.randomUUID(), name: newName.trim(), albums: [], created: Date.now() };
-    persist(playlists.concat([pl]));
+    const pl = { id: crypto.randomUUID(), name: newName.trim(), albums: [], created: Date.now() };
+    persist([...playlists, pl]);
     setActiveId(pl.id); setShowNew(false); setNewName('');
   }
 
   function addAlbum(album) {
     if (!activeId) { showToast('Select or create a playlist first'); return; }
-    persist(playlists.map(function(p) {
+    persist(playlists.map(p => {
       if (p.id !== activeId) return p;
-      if (p.albums.some(function(a) { return a.id === album.id; })) { showToast('Already in playlist'); return p; }
-      return Object.assign({}, p, { albums: p.albums.concat([{ id: album.id, name: album.name, artists: album.artists, images: album.images, total_tracks: album.total_tracks }]) });
+      if (p.albums.some(a => a.id === album.id)) { showToast('Already in playlist'); return p; }
+      return { ...p, albums: [...p.albums, { id: album.id, name: album.name, artists: album.artists, images: album.images, total_tracks: album.total_tracks }] };
     }));
     setSearchQuery(''); setSearchResults([]);
     showToast('Added "' + album.name + '"');
   }
 
   function removeAlbum(plId, albumId) {
-    persist(playlists.map(function(p) {
-      return p.id !== plId ? p : Object.assign({}, p, { albums: p.albums.filter(function(a) { return a.id !== albumId; }) });
-    }));
+    persist(playlists.map(p => p.id !== plId ? p : { ...p, albums: p.albums.filter(a => a.id !== albumId) }));
   }
 
   function shuffleAlbums() {
     if (!activePl) return;
-    var shuffled = activePl.albums.slice().sort(function() { return Math.random() - 0.5; });
-    persist(playlists.map(function(p) { return p.id !== activeId ? p : Object.assign({}, p, { albums: shuffled }); }));
+    const shuffled = [...activePl.albums].sort(() => Math.random() - 0.5);
+    persist(playlists.map(p => p.id !== activeId ? p : { ...p, albums: shuffled }));
     showToast('Albums shuffled');
   }
 
-  function renamePlaylist(id, name) {
-    persist(playlists.map(function(p) { return p.id !== id ? p : Object.assign({}, p, { name: name }); }));
-  }
+  function renamePlaylist(id, name) { persist(playlists.map(p => p.id !== id ? p : { ...p, name })); }
 
   function deletePlaylist(id) {
-    var updated = playlists.filter(function(p) { return p.id !== id; });
+    const updated = playlists.filter(p => p.id !== id);
     persist(updated);
-    if (activeId === id) setActiveId(updated.length ? updated[0].id : null);
+    if (activeId === id) setActiveId(updated[0]?.id || null);
   }
 
   function onDragStart(i) { setDragIdx(i); }
   function onDragOver(e, i) { e.preventDefault(); setDragOver(i); }
   function onDrop(i) {
     if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDragOver(null); return; }
-    persist(playlists.map(function(p) {
+    persist(playlists.map(p => {
       if (p.id !== activeId) return p;
-      var albums = p.albums.slice();
-      var moved = albums.splice(dragIdx, 1)[0];
+      const albums = [...p.albums];
+      const [moved] = albums.splice(dragIdx, 1);
       albums.splice(i, 0, moved);
-      return Object.assign({}, p, { albums: albums });
+      return { ...p, albums };
     }));
     setDragIdx(null); setDragOver(null);
   }
@@ -453,54 +456,80 @@ function App() {
     if (!activePl || !user) return;
     setSyncing(true);
     try {
-      var allTracks = [];
-      for (var i = 0; i < activePl.albums.length; i++) {
-        var data = await api('https://api.spotify.com/v1/albums/' + activePl.albums[i].id + '/tracks?limit=50');
-        if (data && data.items) allTracks = allTracks.concat(data.items.map(function(t) { return t.uri; }));
+      // Check if we already have a linked Spotify playlist for this Albumify playlist
+      const existingId = activePl.spotifyPlId;
+      let plId = existingId;
+
+      // Gather all track URIs in album order
+      const allTracks = [];
+      for (const album of activePl.albums) {
+        const data = await api('https://api.spotify.com/v1/albums/' + album.id + '/tracks?limit=50');
+        if (data?.items) allTracks.push(...data.items.map(t => t.uri));
       }
-      var pl = await api('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
-        method: 'POST',
-        body: JSON.stringify({ name: activePl.name + ' (Albumify)', public: false, description: 'Created by Albumify' })
-      });
-      for (var j = 0; j < allTracks.length; j += 100) {
-        await api('https://api.spotify.com/v1/playlists/' + pl.id + '/tracks', {
-          method: 'POST', body: JSON.stringify({ uris: allTracks.slice(j, j + 100) })
+
+      if (plId) {
+        // Update existing playlist: replace all tracks
+        await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+          method: 'PUT', body: JSON.stringify({ uris: allTracks.slice(0, 100) })
         });
+        // Add remaining tracks in batches
+        for (let i = 100; i < allTracks.length; i += 100) {
+          await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+            method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i, i + 100) })
+          });
+        }
+        showToast('Spotify playlist updated');
+      } else {
+        // Create new playlist and save its ID
+        const pl = await api('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
+          method: 'POST', body: JSON.stringify({ name: activePl.name + ' (Albumify)', public: false, description: 'Created by Albumify' })
+        });
+        plId = pl.id;
+        for (let i = 0; i < allTracks.length; i += 100) {
+          await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+            method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i, i + 100) })
+          });
+        }
+        // Remember the Spotify playlist ID so future syncs update instead of create
+        persist(playlists.map(p => p.id !== activeId ? p : { ...p, spotifyPlId: plId }));
+        showToast('Synced to Spotify');
       }
-      showToast('Synced to Spotify as "' + pl.name + '"');
-    } catch(e) { showToast('Sync failed — please try again'); }
+    } catch(e) { showToast('Sync failed — try again'); }
     setSyncing(false);
   }
 
   async function openImport() {
     setShowImport(true); setImportAlbums(null); setImportLoading(false);
-    var data = await api('https://api.spotify.com/v1/me/playlists?limit=20');
-    setSpotifyPls((data && data.items) || []);
+    const data = await api('https://api.spotify.com/v1/me/playlists?limit=20');
+    setSpotifyPls(data?.items || []);
   }
 
   async function importPlaylist(sp) {
     setImportLoading(true); setImportAlbums(null);
-    var tracks = [];
-    var url = 'https://api.spotify.com/v1/playlists/' + sp.id + '/tracks?limit=50&fields=next,items(track(album(id,name,artists,images,total_tracks)))';
+    let tracks = [];
+    let url = 'https://api.spotify.com/v1/playlists/' + sp.id + '/tracks?limit=50&fields=next,items(track(album(id,name,artists,images,total_tracks)))';
     while (url) {
-      var data = await api(url);
-      var items = (data && data.items) || [];
-      items.forEach(function(i) { if (i.track && i.track.album) tracks.push(i.track.album); });
-      url = data && data.next;
+      const data = await api(url);
+      (data?.items || []).forEach(i => { if (i.track?.album) tracks.push(i.track.album); });
+      url = data?.next;
     }
-    var seen = {};
-    var albums = tracks.filter(function(a) { if (!a || !a.id || seen[a.id]) return false; seen[a.id] = true; return true; });
-    var pl = { id: crypto.randomUUID(), name: sp.name, albums: albums, created: Date.now() };
-    persist(playlists.concat([pl]));
+    const seen = {};
+    const albums = tracks.filter(a => a && a.id && !seen[a.id] && (seen[a.id] = true));
+    const pl = { id: crypto.randomUUID(), name: sp.name, albums, created: Date.now() };
+    persist([...playlists, pl]);
     setActiveId(pl.id); setImportAlbums(albums); setImportLoading(false);
   }
 
   function logout() {
-    ['spotify_access_token','spotify_refresh_token','spotify_token_expires'].forEach(function(k) { localStorage.removeItem(k); });
+    ['spotify_access_token','spotify_refresh_token','spotify_token_expires'].forEach(k => localStorage.removeItem(k));
     setToken(null); setUser(null); setPlayback(null);
   }
 
-  // Login screen
+  function selectPlaylist(id) {
+    setActiveId(id);
+    setDrawerOpen(false);
+  }
+
   if (!token) {
     return h('div', { className: 'login-screen' },
       h('div', { className: 'login-logo' }, 'Albumify'),
@@ -509,73 +538,79 @@ function App() {
     );
   }
 
-  var pl = activePl;
-  var coverImgs = pl ? pl.albums.slice(0,4).map(function(a) { return (a.images && a.images[1] && a.images[1].url) || (a.images && a.images[0] && a.images[0].url); }).filter(Boolean) : [];
-  var nowPlayingAlbumId = playback && playback.item && playback.item.album && playback.item.album.id;
-  var progress = (playback && playback.item) ? ((playback.progress_ms / playback.item.duration_ms) * 100) : 0;
+  const pl = activePl;
+  const coverImgs = pl?.albums?.slice(0,4).map(a => a.images?.[1]?.url || a.images?.[0]?.url).filter(Boolean) || [];
+  const progress = (playback?.item) ? ((playback.progress_ms / playback.item.duration_ms) * 100) : 0;
+
+  // ── Sidebar contents (shared between desktop + drawer) ──
+  const sidebarContent = h(React.Fragment, {},
+    h('div', { className: 'sidebar-header' },
+      h('div', { className: 'logo' }, 'Albumify'),
+      h('button', { className: 'new-pl-btn', onClick: () => { setShowNew(true); setDrawerOpen(false); } }, '+ New playlist')
+    ),
+    h('div', { className: 'pl-list' },
+      playlists.length === 0 && h('div', { style: { padding: '16px', fontSize: '12px', color: 'var(--text3)', textAlign: 'center' } }, 'No playlists yet'),
+      playlists.map(p => {
+        const img = p.albums?.[0]?.images?.[1]?.url || p.albums?.[0]?.images?.[0]?.url;
+        return h('div', { key: p.id, className: 'pl-item' + (p.id === activeId ? ' active' : ''), onClick: () => selectPlaylist(p.id) },
+          h('div', { className: 'pl-item-icon' }, img ? h('img', { src: img, alt: '' }) : '♫'),
+          h('div', { style: { minWidth: 0 } },
+            h('div', { className: 'pl-item-name' }, p.name),
+            h('div', { className: 'pl-item-count' }, p.albums.length + ' album' + (p.albums.length !== 1 ? 's' : ''))
+          )
+        );
+      })
+    ),
+    h('div', { className: 'sidebar-user' },
+      user && h(React.Fragment, {},
+        h('div', { className: 'user-avatar' },
+          user.images?.[0]?.url ? h('img', { src: user.images[0].url, alt: '' }) : h('span', {}, (user.display_name||'?')[0])
+        ),
+        h('div', { className: 'user-name' }, user.display_name),
+        h('button', { className: 'logout-btn', onClick: logout }, 'Sign out')
+      )
+    )
+  );
 
   return h('div', { className: 'layout' },
+
+    // Mobile drawer overlay
+    h('div', { className: 'drawer-overlay' + (drawerOpen ? ' open' : ''), onClick: () => setDrawerOpen(false) }),
 
     h('div', { className: 'app' },
 
       // Sidebar
-      h('div', { className: 'sidebar' },
-        h('div', { className: 'sidebar-header' },
-          h('div', { className: 'logo' }, 'Albumify'),
-          h('button', { className: 'new-pl-btn', onClick: function() { setShowNew(true); } }, '+ New playlist')
-        ),
-        h('div', { className: 'pl-list' },
-          playlists.length === 0 && h('div', { style: { padding: '16px', fontSize: '12px', color: 'var(--text3)', textAlign: 'center' } }, 'No playlists yet'),
-          playlists.map(function(p) {
-            var img = (p.albums[0] && p.albums[0].images && p.albums[0].images[1] && p.albums[0].images[1].url) || (p.albums[0] && p.albums[0].images && p.albums[0].images[0] && p.albums[0].images[0].url);
-            return h('div', { key: p.id, className: 'pl-item' + (p.id === activeId ? ' active' : ''), onClick: function() { setActiveId(p.id); } },
-              h('div', { className: 'pl-item-icon' }, img ? h('img', { src: img, alt: '' }) : '♫'),
-              h('div', {},
-                h('div', { className: 'pl-item-name' }, p.name),
-                h('div', { className: 'pl-item-count' }, p.albums.length + ' album' + (p.albums.length !== 1 ? 's' : ''))
-              )
-            );
-          })
-        ),
-        h('div', { className: 'sidebar-user' },
-          user && h(React.Fragment, {},
-            h('div', { className: 'user-avatar' },
-              (user.images && user.images[0] && user.images[0].url) ? h('img', { src: user.images[0].url, alt: '' }) : h('span', {}, (user.display_name || '?')[0])
-            ),
-            h('div', { className: 'user-name' }, user.display_name),
-            h('button', { className: 'logout-btn', onClick: logout }, 'Sign out')
-          )
-        )
-      ),
+      h('div', { className: 'sidebar' + (drawerOpen ? ' open' : '') }, sidebarContent),
 
-      // Main
+      // Main panel
       h('div', { className: 'main' },
 
         // Topbar
         h('div', { className: 'topbar' },
+          h('button', { className: 'topbar-menu-btn', onClick: () => setDrawerOpen(!drawerOpen), 'aria-label': 'Menu' }, '☰'),
           h('div', { className: 'search-wrap' },
-            h('svg', { className: 'search-icon', width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
-              h('circle', { cx: 11, cy: 11, r: 8 }),
-              h('line', { x1: 21, y1: 21, x2: 16.65, y2: 16.65 })
-            ),
-            h('input', { className: 'search-input', placeholder: 'Search albums to add…', value: searchQuery, onChange: function(e) { setSearchQuery(e.target.value); } }),
+            h('span', { className: 'search-icon' }, '🔍'),
+            h('input', { className: 'search-input', placeholder: 'Search albums…', value: searchQuery, onChange: e => setSearchQuery(e.target.value) }),
             searchResults.length > 0 && h('div', { className: 'search-results' },
-              searchResults.map(function(album) {
-                return h('div', { key: album.id, className: 'search-result-item' },
-                  (album.images && album.images[2] && album.images[2].url) && h('img', { className: 'search-result-art', src: album.images[2].url, alt: '' }),
+              searchResults.map(album => {
+                const img = album.images?.[2]?.url;
+                return h('div', { key: album.id, className: 'search-result-item', onClick: () => addAlbum(album) },
+                  img && h('img', { className: 'search-result-art', src: img, alt: '' }),
                   h('div', { style: { flex: 1, minWidth: 0 } },
                     h('div', { className: 'search-result-name' }, album.name),
-                    h('div', { className: 'search-result-artist' }, (album.artists || []).map(function(a) { return a.name; }).join(', ') + ' · ' + album.total_tracks + ' tracks')
+                    h('div', { className: 'search-result-artist' }, (album.artists||[]).map(a=>a.name).join(', ') + ' · ' + album.total_tracks + ' tracks')
                   ),
-                  h('button', { className: 'add-btn-small', onClick: function() { addAlbum(album); } }, 'Add')
+                  h('button', { className: 'add-btn-small', onClick: e => { e.stopPropagation(); addAlbum(album); } }, 'Add')
                 );
               })
             )
           ),
           h('div', { className: 'topbar-actions' },
-            h('button', { className: 'action-btn', onClick: openImport }, 'Import'),
-            pl && h('button', { className: 'action-btn', onClick: shuffleAlbums }, 'Shuffle'),
-            pl && h('button', { className: 'action-btn primary', onClick: syncToSpotify, disabled: syncing || !pl.albums.length }, syncing ? 'Syncing…' : 'Sync to Spotify')
+            h('button', { className: 'action-btn icon-only', title: 'Import from Spotify', onClick: openImport }, '↓'),
+            pl && h('button', { className: 'action-btn icon-only', title: 'Shuffle albums', onClick: shuffleAlbums }, '⇄'),
+            pl && h('button', { className: 'action-btn primary', onClick: syncToSpotify, disabled: syncing || !pl.albums.length },
+              syncing ? '…' : (pl.spotifyPlId ? 'Update' : 'Sync')
+            )
           )
         ),
 
@@ -585,65 +620,65 @@ function App() {
             ? h('div', { className: 'no-selection' },
                 h('div', { style: { fontSize: 48 } }, '♫'),
                 h('h2', {}, 'No playlist selected'),
-                h('p', {}, 'Create a new album playlist or pick one from the sidebar.'),
-                h('button', { className: 'action-btn primary', style: { marginTop: 8 }, onClick: function() { setShowNew(true); } }, '+ Create playlist')
+                h('p', {}, 'Tap ☰ to open your playlists, or create a new one.'),
+                h('button', { className: 'action-btn primary', style: { marginTop: 12 }, onClick: () => setShowNew(true) }, '+ New playlist')
               )
             : h(React.Fragment, {},
                 h('div', { className: 'pl-header' },
                   h('div', { className: 'pl-cover' },
                     coverImgs.length >= 4
-                      ? h('div', { className: 'pl-cover-grid' }, coverImgs.slice(0,4).map(function(u, i) { return h('img', { key: i, src: u, alt: '' }); }))
+                      ? h('div', { className: 'pl-cover-grid' }, coverImgs.slice(0,4).map((u,i) => h('img', { key: i, src: u, alt: '' })))
                       : coverImgs.length > 0
                         ? h('img', { src: coverImgs[0], alt: '', style: { width: '100%', height: '100%', objectFit: 'cover' } })
                         : h('span', {}, '♫')
                   ),
                   h('div', { className: 'pl-meta' },
                     h('div', { className: 'pl-type' }, 'Album playlist'),
-                    h('input', { className: 'pl-title-input', value: pl.name, onChange: function(e) { renamePlaylist(pl.id, e.target.value); }, 'aria-label': 'Playlist name' }),
-                    h('div', { className: 'pl-stats' }, pl.albums.length + ' album' + (pl.albums.length !== 1 ? 's' : '') + ' · ' + pl.albums.reduce(function(s, a) { return s + (a.total_tracks || 0); }, 0) + ' tracks')
+                    h('input', { className: 'pl-title-input', value: pl.name, onChange: e => renamePlaylist(pl.id, e.target.value), 'aria-label': 'Playlist name' }),
+                    h('div', { className: 'pl-stats' },
+                      pl.albums.length + ' album' + (pl.albums.length !== 1 ? 's' : '') + ' · ' +
+                      pl.albums.reduce((s,a) => s + (a.total_tracks||0), 0) + ' tracks' +
+                      (pl.spotifyPlId ? ' · synced' : '')
+                    )
                   ),
-                  h('button', { className: 'icon-btn', style: { marginLeft: 'auto' }, onClick: function() { if (confirm('Delete "' + pl.name + '"?')) deletePlaylist(pl.id); } }, '🗑')
+                  h('button', { className: 'icon-btn', style: { marginLeft: 'auto', alignSelf: 'flex-start' }, onClick: () => { if (confirm('Delete "' + pl.name + '"?')) deletePlaylist(pl.id); } }, '🗑')
                 ),
 
-                h('div', { className: 'album-list' },
-                  pl.albums.length === 0
-                    ? h('div', { className: 'empty-state' },
-                        h('div', { style: { fontSize: 48 } }, '♫'),
-                        h('h3', {}, 'No albums yet'),
-                        h('p', {}, 'Search for albums above and add them here.')
-                      )
-                    : h(React.Fragment, {},
-                        h('div', { className: 'album-list-header' },
-                          h('span', {}, '#'), h('span', {}), h('span', {}, 'Album'), h('span', {}, 'Tracks'), h('span', {})
-                        ),
-                        pl.albums.map(function(album, i) {
-                          var artUrl = (album.images && album.images[1] && album.images[1].url) || (album.images && album.images[0] && album.images[0].url);
-                          var isPlaying = nowPlayingAlbumId === album.id;
-                          return h('div', {
-                            key: album.id,
-                            className: 'album-row' + (dragOver === i ? ' drag-over' : '') + (isPlaying ? ' now-playing' : ''),
-                            draggable: true,
-                            onDragStart: function() { onDragStart(i); },
-                            onDragOver: function(e) { onDragOver(e, i); },
-                            onDrop: function() { onDrop(i); },
-                            onDragEnd: function() { setDragIdx(null); setDragOver(null); }
-                          },
-                            h('div', { style: { color: 'var(--text3)', textAlign: 'center' } }, '⠿'),
-                            h('div', {}, artUrl ? h('img', { className: 'album-art', src: artUrl, alt: '' }) : h('div', { className: 'album-art', style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } }, '♫')),
-                            h('div', { style: { minWidth: 0 } },
-                              h('div', { className: 'album-name' }, album.name),
-                              h('div', { className: 'album-artist' }, (album.artists || []).map(function(a) { return a.name; }).join(', '))
-                            ),
-                            h('div', { className: 'album-tracks' }, album.total_tracks + ' tracks'),
-                            h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' } },
-                              isPlaying && h('div', { className: 'playing-dot' }),
-                              h('button', { className: 'icon-btn', title: 'Play album', onClick: function(e) { e.stopPropagation(); playAlbum(album.id); } }, '▶'),
-                              h('button', { className: 'icon-btn', title: 'Remove', onClick: function() { removeAlbum(pl.id, album.id); } }, '🗑')
-                            )
-                          );
-                        })
-                      )
-                )
+                pl.albums.length === 0
+                  ? h('div', { className: 'empty-state' },
+                      h('div', { style: { fontSize: 48 } }, '♫'),
+                      h('h3', {}, 'No albums yet'),
+                      h('p', {}, 'Search for albums above and add them here.')
+                    )
+                  : h('div', { className: 'album-list' },
+                      pl.albums.map((album, i) => {
+                        const artUrl = album.images?.[1]?.url || album.images?.[0]?.url;
+                        const isPlaying = nowPlayingAlbumId === album.id;
+                        return h('div', {
+                          key: album.id,
+                          className: 'album-row' + (dragOver === i ? ' drag-over' : '') + (isPlaying ? ' now-playing' : ''),
+                          draggable: true,
+                          onDragStart: () => onDragStart(i),
+                          onDragOver: e => onDragOver(e, i),
+                          onDrop: () => onDrop(i),
+                          onDragEnd: () => { setDragIdx(null); setDragOver(null); }
+                        },
+                          artUrl
+                            ? h('img', { className: 'album-art', src: artUrl, alt: '' })
+                            : h('div', { className: 'album-art', style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } }, '♫'),
+                          h('div', { className: 'album-info' },
+                            h('div', { className: 'album-name' }, album.name),
+                            h('div', { className: 'album-artist' }, (album.artists||[]).map(a=>a.name).join(', ')),
+                            h('div', { className: 'album-tracks-label' }, album.total_tracks + ' tracks')
+                          ),
+                          h('div', { className: 'album-actions' },
+                            isPlaying && h('div', { className: 'playing-dot' }),
+                            h('button', { className: 'icon-btn', title: 'Play album', onClick: e => { e.stopPropagation(); playAlbum(album.id); } }, '▶'),
+                            h('button', { className: 'icon-btn', title: 'Remove', onClick: () => removeAlbum(pl.id, album.id) }, '🗑')
+                          )
+                        );
+                      })
+                    )
               )
         )
       )
@@ -651,117 +686,113 @@ function App() {
 
     // Player bar
     h('div', { className: 'player-bar' },
-      (playback && playback.item)
-        ? h(React.Fragment, {},
-            h('div', { className: 'player-art' },
-              (playback.item.album && playback.item.album.images && playback.item.album.images[2] && playback.item.album.images[2].url)
-                ? h('img', { src: playback.item.album.images[2].url, alt: '' })
-                : '♫'
-            ),
-            h('div', { className: 'player-track' },
-              h('div', { className: 'player-track-name' }, playback.item.name),
-              h('div', { className: 'player-track-album' },
-                (playback.item.artists || []).map(function(a) { return a.name; }).join(', ') +
-                (playback.item.album ? ' · ' + playback.item.album.name : '')
-              )
-            ),
-            h('div', { className: 'player-controls' },
-              h('div', { className: 'player-buttons' },
-                h('button', { className: 'player-btn album-btn', title: 'Prev album', onClick: function() { prevAlbum(); } }, '⏮'),
-                h('button', { className: 'player-btn track-btn', title: 'Previous track', onClick: function() { playerCmd('previous', 'POST'); } }, '◀'),
-                h('button', { className: 'player-btn play', title: playback.is_playing ? 'Pause' : 'Play', onClick: function() { playerCmd(playback.is_playing ? 'pause' : 'play'); } }, playback.is_playing ? '⏸' : '▶'),
-                h('button', { className: 'player-btn track-btn', title: 'Next track', onClick: function() { playerCmd('next', 'POST'); } }, '▶'),
-                h('button', { className: 'player-btn album-btn', title: 'Next album', onClick: function() { nextAlbum(); } }, '⏭')
-              ),
-              h('div', { className: 'progress-wrap' },
-                h('span', { className: 'progress-time' }, fmtMs(playback.progress_ms)),
-                h('div', { className: 'progress-bar', onClick: function(e) {
-                  var rect = e.currentTarget.getBoundingClientRect();
-                  var pct = (e.clientX - rect.left) / rect.width;
-                  playerCmd('seek?position_ms=' + Math.floor(pct * playback.item.duration_ms));
-                }},
-                  h('div', { className: 'progress-fill', style: { width: progress.toFixed(1) + '%' } })
-                ),
-                h('span', { className: 'progress-time right' }, fmtMs(playback.item.duration_ms))
-              )
-            )
-          )
-        : (playback && playback.device)
+      h('div', { className: 'player-inner' },
+        playback?.item
           ? h(React.Fragment, {},
-              h('div', { className: 'player-art' }, '📱'),
+              h('div', { className: 'player-art' },
+                playback.item.album?.images?.[2]?.url
+                  ? h('img', { src: playback.item.album.images[2].url, alt: '' })
+                  : '♫'
+              ),
               h('div', { className: 'player-track' },
-                h('div', { className: 'player-track-name' }, playback.device.name),
-                h('div', { className: 'player-track-album' }, 'Ready — press ▶ on an album to start')
+                h('div', { className: 'player-track-name' }, playback.item.name),
+                h('div', { className: 'player-track-sub' },
+                  (playback.item.artists||[]).map(a=>a.name).join(', ') + (playback.item.album ? ' · ' + playback.item.album.name : '')
+                ),
+                h('div', { className: 'progress-wrap', style: { marginTop: 4 } },
+                  h('span', { className: 'progress-time' }, fmtMs(playback.progress_ms)),
+                  h('div', { className: 'progress-bar', onClick: e => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    playerCmd('seek?position_ms=' + Math.floor(((e.clientX - rect.left) / rect.width) * playback.item.duration_ms));
+                  }}, h('div', { className: 'progress-fill', style: { width: progress.toFixed(1) + '%' } })),
+                  h('span', { className: 'progress-time right' }, fmtMs(playback.item.duration_ms))
+                )
               ),
               h('div', { className: 'player-controls' },
                 h('div', { className: 'player-buttons' },
-                  h('button', { className: 'player-btn', disabled: true }, '⏮'),
-                  h('button', { className: 'player-btn play', title: 'Play', onClick: function() { playerCmd('play'); } }, '▶'),
-                  h('button', { className: 'player-btn', disabled: true }, '⏭')
-                ),
-                h('div', { className: 'progress-wrap' },
-                  h('span', { className: 'progress-time' }, '0:00'),
-                  h('div', { className: 'progress-bar' }, h('div', { className: 'progress-fill', style: { width: '0%' } })),
-                  h('span', { className: 'progress-time right' }, '0:00')
+                  h('button', { className: 'player-btn', title: 'Prev album', onClick: prevAlbum }, '⏮'),
+                  h('button', { className: 'player-btn sm', title: 'Prev track', onClick: () => playerCmd('previous', 'POST') }, '◀'),
+                  h('button', { className: 'player-btn play', onClick: () => playerCmd(playback.is_playing ? 'pause' : 'play') }, playback.is_playing ? '⏸' : '▶'),
+                  h('button', { className: 'player-btn sm', title: 'Next track', onClick: () => playerCmd('next', 'POST') }, '▶'),
+                  h('button', { className: 'player-btn', title: 'Next album', onClick: nextAlbum }, '⏭')
                 )
               )
             )
-          : h('div', { className: 'player-no-device' }, '▶  Open Spotify on any device to enable playback controls')
+          : playback?.device
+            ? h(React.Fragment, {},
+                h('div', { className: 'player-art' }, '📱'),
+                h('div', { className: 'player-track' },
+                  h('div', { className: 'player-track-name' }, playback.device.name),
+                  h('div', { className: 'player-track-sub' }, 'Ready — tap ▶ on an album to start')
+                ),
+                h('div', { className: 'player-controls' },
+                  h('div', { className: 'player-buttons' },
+                    h('button', { className: 'player-btn', disabled: true }, '⏮'),
+                    h('button', { className: 'player-btn sm', disabled: true }, '◀'),
+                    h('button', { className: 'player-btn play', onClick: () => playerCmd('play') }, '▶'),
+                    h('button', { className: 'player-btn sm', disabled: true }, '▶'),
+                    h('button', { className: 'player-btn', disabled: true }, '⏭')
+                  )
+                )
+              )
+            : h('div', { className: 'player-no-device' }, 'Open Spotify on any device to enable controls')
+      )
     ),
 
-    // Modals
-    showNew && h('div', { className: 'modal-overlay', onClick: function(e) { if (e.target === e.currentTarget) setShowNew(false); } },
+    // New playlist modal
+    showNew && h('div', { className: 'modal-overlay', onClick: e => e.target === e.currentTarget && setShowNew(false) },
       h('div', { className: 'modal' },
         h('h2', {}, 'New album playlist'),
-        h('input', { className: 'modal-input', placeholder: 'Playlist name…', value: newName, autoFocus: true, onChange: function(e) { setNewName(e.target.value); }, onKeyDown: function(e) { if (e.key === 'Enter') createPlaylist(); } }),
+        h('input', { className: 'modal-input', placeholder: 'Playlist name…', value: newName, autoFocus: true, onChange: e => setNewName(e.target.value), onKeyDown: e => e.key === 'Enter' && createPlaylist() }),
         h('div', { className: 'modal-actions' },
-          h('button', { className: 'action-btn', onClick: function() { setShowNew(false); } }, 'Cancel'),
+          h('button', { className: 'action-btn', onClick: () => setShowNew(false) }, 'Cancel'),
           h('button', { className: 'action-btn primary', onClick: createPlaylist }, 'Create')
         )
       )
     ),
 
-    showImport && h('div', { className: 'modal-overlay', onClick: function(e) { if (e.target === e.currentTarget) setShowImport(false); } },
+    // Import modal
+    showImport && h('div', { className: 'modal-overlay', onClick: e => e.target === e.currentTarget && setShowImport(false) },
       h('div', { className: 'modal' },
         h('h2', {}, 'Import from Spotify'),
         importLoading
-          ? h('div', { style: { textAlign: 'center', padding: '24px', color: 'var(--text2)', fontSize: '13px' } }, 'Grouping tracks by album…')
+          ? h('div', { style: { textAlign: 'center', padding: '32px', color: 'var(--text2)', fontSize: '14px' } }, 'Grouping tracks by album…')
           : importAlbums
             ? h(React.Fragment, {},
-                h('p', { style: { fontSize: '13px', color: 'var(--text2)', marginBottom: '12px' } }, 'Found ' + importAlbums.length + ' albums.'),
+                h('p', { style: { fontSize: '14px', color: 'var(--text2)', marginBottom: '12px' } }, 'Found ' + importAlbums.length + ' albums.'),
                 h('div', { className: 'scrollable' },
-                  importAlbums.map(function(a) {
-                    var img = a.images && a.images[2] && a.images[2].url;
+                  importAlbums.map(a => {
+                    const img = a.images?.[2]?.url;
                     return h('div', { key: a.id, className: 'import-item' },
                       img && h('img', { className: 'import-art', src: img, alt: '' }),
                       h('div', {},
                         h('div', { style: { fontWeight: 600, fontSize: '13px' } }, a.name),
-                        h('div', { style: { fontSize: '11px', color: 'var(--text2)' } }, (a.artists || []).map(function(x) { return x.name; }).join(', '))
+                        h('div', { style: { fontSize: '11px', color: 'var(--text2)' } }, (a.artists||[]).map(x=>x.name).join(', '))
                       ),
                       h('span', { style: { marginLeft: 'auto', color: 'var(--green)', fontWeight: 700 } }, '✓')
                     );
                   })
                 ),
-                h('div', { className: 'modal-actions', style: { marginTop: '16px' } },
-                  h('button', { className: 'action-btn primary', onClick: function() { setShowImport(false); } }, 'Done')
+                h('div', { className: 'modal-actions', style: { marginTop: 16 } },
+                  h('button', { className: 'action-btn primary', onClick: () => setShowImport(false) }, 'Done')
                 )
               )
             : h(React.Fragment, {},
-                h('p', { style: { fontSize: '13px', color: 'var(--text2)', marginBottom: '12px' } }, 'Pick a Spotify playlist to import. Tracks will be grouped into albums.'),
+                h('p', { style: { fontSize: '14px', color: 'var(--text2)', marginBottom: '12px' } }, 'Pick a Spotify playlist to import.'),
                 h('div', { className: 'scrollable' },
-                  spotifyPls.map(function(sp) {
-                    var img = sp.images && sp.images[0] && sp.images[0].url;
-                    return h('div', { key: sp.id, className: 'import-item', onClick: function() { importPlaylist(sp); } },
+                  spotifyPls.map(sp => {
+                    const img = sp.images?.[0]?.url;
+                    return h('div', { key: sp.id, className: 'import-item', onClick: () => importPlaylist(sp) },
                       img && h('img', { className: 'import-art', src: img, alt: '' }),
                       h('div', {},
                         h('div', { style: { fontWeight: 600, fontSize: '13px' } }, sp.name),
-                        h('div', { style: { fontSize: '11px', color: 'var(--text2)' } }, (sp.tracks ? sp.tracks.total : 0) + ' tracks')
+                        h('div', { style: { fontSize: '11px', color: 'var(--text2)' } }, (sp.tracks?.total || 0) + ' tracks')
                       )
                     );
                   })
                 ),
-                h('div', { className: 'modal-actions', style: { marginTop: '16px' } },
-                  h('button', { className: 'action-btn', onClick: function() { setShowImport(false); } }, 'Cancel')
+                h('div', { className: 'modal-actions', style: { marginTop: 16 } },
+                  h('button', { className: 'action-btn', onClick: () => setShowImport(false) }, 'Cancel')
                 )
               )
       )
