@@ -123,6 +123,8 @@
     .player-controls { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; max-width: 400px; }
     .player-buttons { display: flex; align-items: center; gap: 12px; }
     .player-btn { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text2); transition: all 0.15s; font-size: 15px; }
+    .player-btn.track-btn { font-size: 12px; opacity: 0.7; }
+    .player-btn.album-btn { font-size: 17px; }
     .player-btn:hover { color: var(--text); }
     .player-btn.play { width: 36px; height: 36px; background: var(--text); border-radius: 50%; color: #000; font-size: 14px; }
     .player-btn.play:hover { transform: scale(1.06); }
@@ -369,6 +371,23 @@ function App() {
     if (deviceId) body.device_id = deviceId;
     playerCmd('play', 'PUT', body);
     setTimeout(fetchPlayback, 1000);
+  }
+
+  function nextAlbum() {
+    if (!activePl || !nowPlayingAlbumId) return;
+    var idx = activePl.albums.findIndex(function(a) { return a.id === nowPlayingAlbumId; });
+    if (idx === -1 || idx >= activePl.albums.length - 1) { showToast("Last album in playlist"); return; }
+    playAlbum(activePl.albums[idx + 1].id);
+    showToast(activePl.albums[idx + 1].name);
+  }
+
+  function prevAlbum() {
+    if (!activePl || !nowPlayingAlbumId) return;
+    var idx = activePl.albums.findIndex(function(a) { return a.id === nowPlayingAlbumId; });
+    if (playback && playback.progress_ms > 3000) { playerCmd("seek?position_ms=0"); return; }
+    if (idx <= 0) { showToast("First album in playlist"); return; }
+    playAlbum(activePl.albums[idx - 1].id);
+    showToast(activePl.albums[idx - 1].name);
   }
 
   function persist(pls) { setPlaylists(pls); savePlaylists(pls); }
@@ -648,9 +667,11 @@ function App() {
             ),
             h('div', { className: 'player-controls' },
               h('div', { className: 'player-buttons' },
-                h('button', { className: 'player-btn', title: 'Previous', onClick: function() { playerCmd('previous', 'POST'); } }, '⏮'),
+                h('button', { className: 'player-btn album-btn', title: 'Prev album', onClick: function() { prevAlbum(); } }, '⏮'),
+                h('button', { className: 'player-btn track-btn', title: 'Previous track', onClick: function() { playerCmd('previous', 'POST'); } }, '◀'),
                 h('button', { className: 'player-btn play', title: playback.is_playing ? 'Pause' : 'Play', onClick: function() { playerCmd(playback.is_playing ? 'pause' : 'play'); } }, playback.is_playing ? '⏸' : '▶'),
-                h('button', { className: 'player-btn', title: 'Next', onClick: function() { playerCmd('next', 'POST'); } }, '⏭')
+                h('button', { className: 'player-btn track-btn', title: 'Next track', onClick: function() { playerCmd('next', 'POST'); } }, '▶'),
+                h('button', { className: 'player-btn album-btn', title: 'Next album', onClick: function() { nextAlbum(); } }, '⏭')
               ),
               h('div', { className: 'progress-wrap' },
                 h('span', { className: 'progress-time' }, fmtMs(playback.progress_ms)),
