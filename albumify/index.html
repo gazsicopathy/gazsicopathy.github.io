@@ -627,10 +627,6 @@ function App() {
     if (!activePl || !user) return;
     setSyncing(true);
     try {
-      // Check if we already have a linked Spotify playlist for this Albumify playlist
-      const existingId = activePl.spotifyPlId;
-      let plId = existingId;
-
       // Gather all track URIs in album order
       const allTracks = [];
       for (const album of activePl.albums) {
@@ -638,12 +634,26 @@ function App() {
         if (data?.items) allTracks.push(...data.items.map(t => t.uri));
       }
 
+      let plId = activePl.spotifyPlId;
+
+      // If we have a stored playlist ID, verify it still exists on Spotify
       if (plId) {
-        // Update existing playlist: replace all tracks
+        const tok = await getToken();
+        const check = await fetch('https://api.spotify.com/v1/playlists/' + plId + '?fields=id', {
+          headers: { 'Authorization': 'Bearer ' + tok }
+        });
+        if (check.status === 404 || check.status === 403) {
+          // Playlist was deleted — clear the stored ID and create fresh
+          plId = null;
+          persist(playlists.map(p => p.id !== activeId ? p : { ...p, spotifyPlId: null }));
+        }
+      }
+
+      if (plId) {
+        // Update existing playlist tracks
         await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
           method: 'PUT', body: JSON.stringify({ uris: allTracks.slice(0, 100) })
         });
-        // Add remaining tracks in batches
         for (let i = 100; i < allTracks.length; i += 100) {
           await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
             method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i, i + 100) })
@@ -652,16 +662,15 @@ function App() {
         showToast('Spotify playlist updated');
       } else {
         // Create new playlist and save its ID
-        const pl = await api('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
+        const created = await api('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
           method: 'POST', body: JSON.stringify({ name: activePl.name + ' (Albumify)', public: false, description: 'Created by Albumify' })
         });
-        plId = pl.id;
+        plId = created.id;
         for (let i = 0; i < allTracks.length; i += 100) {
           await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
             method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i, i + 100) })
           });
         }
-        // Remember the Spotify playlist ID so future syncs update instead of create
         persist(playlists.map(p => p.id !== activeId ? p : { ...p, spotifyPlId: plId }));
         showToast('Synced to Spotify');
       }
