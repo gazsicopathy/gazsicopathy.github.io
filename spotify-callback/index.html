@@ -56,7 +56,7 @@
     } else if (code) {
       msg.textContent = 'Signed in! Returning to Albumify...';
       const redirectUrl = 'albumify://callback?code=' + encodeURIComponent(code) + (state ? '&state=' + encodeURIComponent(state) : '');
-      const webUrl = window.location.origin + '/albumify/?code=' + encodeURIComponent(code) + (state ? '&state=' + encodeURIComponent(state) : '');
+      const webUrl = 'https://gazsicopathy.github.io/albumify/?code=' + encodeURIComponent(code) + (state ? '&state=' + encodeURIComponent(state) : '');
 
       setTimeout(() => {
         window.location.href = redirectUrl;
