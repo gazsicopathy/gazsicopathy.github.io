@@ -636,14 +636,32 @@ function App() {
 
       let plId = activePl.spotifyPlId;
 
-      // If we have a stored playlist ID, verify it still exists on Spotify
+      // If we have a stored playlist ID, verify it still exists and is followable
       if (plId) {
         const tok = await getToken();
-        const check = await fetch('https://api.spotify.com/v1/playlists/' + plId + '?fields=id', {
+        const check = await fetch('https://api.spotify.com/v1/playlists/' + plId + '?fields=id,tracks.total', {
           headers: { 'Authorization': 'Bearer ' + tok }
         });
-        if (check.status === 404 || check.status === 403) {
-          // Playlist was deleted — clear the stored ID and create fresh
+        let dead = false;
+        if (!check.ok) {
+          dead = true;
+        } else {
+          const data = await check.json();
+          // Spotify marks deleted playlists by returning null tracks or error object
+          if (!data || !data.id || data.error) dead = true;
+        }
+        // Also check the current user still follows it (i.e. hasn't unfollowed/deleted it)
+        if (!dead) {
+          const followCheck = await fetch(
+            'https://api.spotify.com/v1/playlists/' + plId + '/followers/contains?ids=' + user.id,
+            { headers: { 'Authorization': 'Bearer ' + tok } }
+          );
+          if (followCheck.ok) {
+            const follows = await followCheck.json();
+            if (Array.isArray(follows) && follows[0] === false) dead = true;
+          }
+        }
+        if (dead) {
           plId = null;
           persist(playlists.map(p => p.id !== activeId ? p : { ...p, spotifyPlId: null }));
         }
