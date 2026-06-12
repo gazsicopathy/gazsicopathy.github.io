@@ -308,12 +308,33 @@ function App() {
     }, 400);
   }, [searchQuery, token]);
 
-  // Playback polling
+  // Playback polling — also fetches devices so we can target paused/idle ones
+  var s_dev = useState(null); var devices = s_dev[0]; var setDevices = s_dev[1];
+
   function fetchPlayback() {
-    api('https://api.spotify.com/v1/me/player').then(function(data) {
-      if (data && data.item) setPlayback(data);
-      else setPlayback(null);
-    }).catch(function() {});
+    // Fetch both player state and available devices in parallel
+    Promise.all([
+      api('https://api.spotify.com/v1/me/player').catch(function() { return null; }),
+      api('https://api.spotify.com/v1/me/player/devices').catch(function() { return null; })
+    ]).then(function(results) {
+      var playerData = results[0];
+      var devData = results[1];
+      var devList = (devData && devData.devices) || [];
+      setDevices(devList);
+      if (playerData && playerData.item) {
+        setPlayback(playerData);
+      } else {
+        // No active playback but store a stub so the bar shows device info
+        var activeDevice = devList.find(function(d) { return d.is_active; }) || devList[0] || null;
+        setPlayback(activeDevice ? { item: null, is_playing: false, device: activeDevice, progress_ms: 0 } : null);
+      }
+    });
+  }
+
+  function getBestDeviceId() {
+    if (!devices || !devices.length) return null;
+    var active = devices.find(function(d) { return d.is_active; });
+    return (active || devices[0]).id;
   }
 
   useEffect(function() {
@@ -326,17 +347,28 @@ function App() {
   async function playerCmd(endpoint, method, body) {
     method = method || 'PUT';
     var tok = await getToken();
-    await fetch('https://api.spotify.com/v1/me/player/' + endpoint, {
+    var deviceId = getBestDeviceId();
+    // For play/pause/seek, append device_id as query param if we have one
+    var url = 'https://api.spotify.com/v1/me/player/' + endpoint;
+    if (deviceId && method === 'PUT' && !url.includes('?')) {
+      url += '?device_id=' + deviceId;
+    } else if (deviceId && method === 'PUT') {
+      url += '&device_id=' + deviceId;
+    }
+    await fetch(url, {
       method: method,
       headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined
     });
-    setTimeout(fetchPlayback, 600);
+    setTimeout(fetchPlayback, 700);
   }
 
   function playAlbum(albumId) {
-    playerCmd('play', 'PUT', { context_uri: 'spotify:album:' + albumId });
-    setTimeout(fetchPlayback, 900);
+    var deviceId = getBestDeviceId();
+    var body = { context_uri: 'spotify:album:' + albumId };
+    if (deviceId) body.device_id = deviceId;
+    playerCmd('play', 'PUT', body);
+    setTimeout(fetchPlayback, 1000);
   }
 
   function persist(pls) { setPlaylists(pls); savePlaylists(pls); }
@@ -633,7 +665,27 @@ function App() {
               )
             )
           )
-        : h('div', { className: 'player-no-device' }, '▶  Open Spotify on any device to enable playback controls')
+        : (playback && playback.device)
+          ? h(React.Fragment, {},
+              h('div', { className: 'player-art' }, '📱'),
+              h('div', { className: 'player-track' },
+                h('div', { className: 'player-track-name' }, playback.device.name),
+                h('div', { className: 'player-track-album' }, 'Ready — press ▶ on an album to start')
+              ),
+              h('div', { className: 'player-controls' },
+                h('div', { className: 'player-buttons' },
+                  h('button', { className: 'player-btn', disabled: true }, '⏮'),
+                  h('button', { className: 'player-btn play', title: 'Play', onClick: function() { playerCmd('play'); } }, '▶'),
+                  h('button', { className: 'player-btn', disabled: true }, '⏭')
+                ),
+                h('div', { className: 'progress-wrap' },
+                  h('span', { className: 'progress-time' }, '0:00'),
+                  h('div', { className: 'progress-bar' }, h('div', { className: 'progress-fill', style: { width: '0%' } })),
+                  h('span', { className: 'progress-time right' }, '0:00')
+                )
+              )
+            )
+          : h('div', { className: 'player-no-device' }, '▶  Open Spotify on any device to enable playback controls')
     ),
 
     // Modals
