@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Albumify — Connecting...</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .logo { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; color: #1DB954; }
+    .msg { font-size: 15px; color: #aaa; }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #333;
+      border-top-color: #1DB954;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error { color: #ff4444; font-size: 14px; max-width: 340px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="logo">Albumify</div>
+  <div class="spinner" id="spinner"></div>
+  <div class="msg" id="msg">Completing sign-in...</div>
+  <div class="error" id="error" style="display:none"></div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const hash = new URLSearchParams(window.location.hash.replace('#', '?'));
+
+    const code = params.get('code');
+    const error = params.get('error') || hash.get('error');
+    const state = params.get('state') || hash.get('state');
+
+    const spinner = document.getElementById('spinner');
+    const msg = document.getElementById('msg');
+    const errEl = document.getElementById('error');
+
+    if (error) {
+      spinner.style.display = 'none';
+      msg.textContent = 'Sign-in cancelled.';
+      errEl.style.display = 'block';
+      errEl.textContent = 'Spotify returned: ' + error + '. You can close this tab.';
+    } else if (code) {
+      msg.textContent = 'Signed in! Returning to Albumify...';
+      const redirectUrl = 'albumify://callback?code=' + encodeURIComponent(code) + (state ? '&state=' + encodeURIComponent(state) : '');
+      const webUrl = window.location.origin + '/albumify/?code=' + encodeURIComponent(code) + (state ? '&state=' + encodeURIComponent(state) : '');
+
+      setTimeout(() => {
+        window.location.href = redirectUrl;
+        setTimeout(() => {
+          window.location.href = webUrl;
+        }, 1000);
+      }, 500);
+    } else {
+      spinner.style.display = 'none';
+      msg.textContent = 'No auth code received.';
+      errEl.style.display = 'block';
+      errEl.textContent = 'Something went wrong. Please try signing in again from the app.';
+    }
+  </script>
+</body>
+</html>
