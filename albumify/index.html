@@ -1090,7 +1090,7 @@ function App() {
                 h('div', { className: 'player-buttons' },
                   h('button', { className: 'player-btn', title: 'Prev album', onClick: prevAlbum }, '⏮'),
                   h('button', { className: 'player-btn sm', title: 'Prev track', onClick: () => playerCmd('previous', 'POST') }, '◀'),
-                  h('button', { className: 'player-btn play', onClick: () => playerCmd(playback.is_playing ? 'pause' : 'play') }, playback.is_playing ? '⏸' : '▶'),
+                  h('button', { className: 'player-btn play', onClick: () => playerCmd(playback.is_playing ? 'pause' : 'play') }, playback.is_playing ? '❙❙' : '▶'),
                   h('button', { className: 'player-btn sm', title: 'Next track', onClick: () => playerCmd('next', 'POST') }, '▶'),
                   h('button', { className: 'player-btn', title: 'Next album', onClick: nextAlbum }, '⏭')
                 )
