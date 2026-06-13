@@ -106,6 +106,18 @@
     .icon-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text3); transition: all 0.1s; font-size: 14px; }
     .icon-btn:active { background: var(--bg4); color: var(--text); }
     .playing-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; animation: pulse 1.5s ease infinite; margin-right: 4px; }
+    .track-list { background: var(--bg2); border-bottom: 1px solid var(--border); overflow: hidden; }
+    .track-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px 9px 24px; cursor: pointer; transition: background 0.1s; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .track-item:last-child { border-bottom: none; }
+    .track-item:active { background: var(--bg3); }
+    .track-item.track-playing { background: rgba(29,185,84,0.08); }
+    .track-num { font-size: 12px; color: var(--text3); min-width: 24px; text-align: center; flex-shrink: 0; }
+    .track-name { font-size: 13px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .track-duration { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+    .track-playing-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; animation: pulse 1.5s ease infinite; }
+    .album-row.expanded { background: var(--bg3); }
+    .expand-indicator { font-size: 10px; color: var(--text3); flex-shrink: 0; transition: transform 0.2s; }
+    .expand-indicator.open { transform: rotate(180deg); }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
     /* ── No selection / empty ── */
@@ -305,6 +317,11 @@ function App() {
   const [playback, setPlayback] = useState(null);
   const [devices, setDevices] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [expandedAlbumId, setExpandedAlbumId] = useState(null);
+  const [albumTracks, setAlbumTracks] = useState({});
+  const [loadingTracks, setLoadingTracks] = useState(null);
+  const longPressTimer = useRef(null);
+  const longPressTriggered = useRef(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const searchTimer = useRef(null);
   const pollTimer = useRef(null);
@@ -452,6 +469,93 @@ function App() {
     playAlbumInContext(albumId, activePl);
   }
 
+  // Fetch and cache tracks for an album
+  async function fetchAlbumTracks(albumId) {
+    if (albumTracks[albumId]) return albumTracks[albumId];
+    setLoadingTracks(albumId);
+    const data = await api('https://api.spotify.com/v1/albums/' + albumId + '/tracks?limit=50');
+    const tracks = data?.items || [];
+    setAlbumTracks(prev => ({ ...prev, [albumId]: tracks }));
+    setLoadingTracks(null);
+    return tracks;
+  }
+
+  // Toggle album track list expansion
+  async function toggleExpand(albumId) {
+    if (expandedAlbumId === albumId) {
+      setExpandedAlbumId(null);
+    } else {
+      setExpandedAlbumId(albumId);
+      fetchAlbumTracks(albumId);
+    }
+  }
+
+  // Long press handlers — long press plays the album
+  function onAlbumPressStart(e, albumId) {
+    longPressTriggered.current = false;
+    longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true;
+      playAlbum(albumId);
+      // Collapse track list if open
+      if (expandedAlbumId === albumId) setExpandedAlbumId(null);
+    }, 500);
+  }
+
+  function onAlbumPressEnd() {
+    clearTimeout(longPressTimer.current);
+  }
+
+  function onAlbumClick(albumId) {
+    if (longPressTriggered.current) return; // was a long press, ignore click
+    toggleExpand(albumId);
+  }
+
+  // Play a specific track within the playlist context
+  async function playTrack(trackUri, albumId) {
+    if (!activePl || !user) return;
+    showToast('Loading…');
+    try {
+      let plId = activePl.spotifyPlId;
+      const allTracks = [];
+      for (const album of activePl.albums) {
+        const data = await api('https://api.spotify.com/v1/albums/' + album.id + '/tracks?limit=50');
+        if (data?.items) allTracks.push(...data.items.map(t => ({ uri: t.uri, albumId: album.id })));
+      }
+      if (plId) {
+        await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+          method: 'PUT', body: JSON.stringify({ uris: allTracks.slice(0,100).map(t=>t.uri) })
+        });
+        for (let i = 100; i < allTracks.length; i += 100) {
+          await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+            method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
+          });
+        }
+      } else {
+        const created = await api('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
+          method: 'POST', body: JSON.stringify({ name: activePl.name + ' (Albumify)', public: false, description: 'Created by Albumify' })
+        });
+        plId = created.id;
+        for (let i = 0; i < allTracks.length; i += 100) {
+          await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+            method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
+          });
+        }
+        persist(playlists.map(p => p.id !== activeId ? p : { ...p, spotifyPlId: plId }));
+      }
+      const offset = allTracks.findIndex(t => t.uri === trackUri);
+      const deviceId = getBestDeviceId();
+      const body = { context_uri: 'spotify:playlist:' + plId, offset: { position: offset >= 0 ? offset : 0 } };
+      if (deviceId) body.device_id = deviceId;
+      const tok = await getToken();
+      await fetch('https://api.spotify.com/v1/me/player/play' + (deviceId ? '?device_id=' + deviceId : ''), {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      setTimeout(fetchPlayback, 1000);
+    } catch(e) { showToast('Playback failed — try again'); }
+  }
+
   function nextAlbum() {
     if (!activePl || !nowPlayingAlbumId) return;
     const idx = activePl.albums.findIndex(a => a.id === nowPlayingAlbumId);
@@ -579,7 +683,10 @@ function App() {
     if (activeId === id) setActiveId(updated[0]?.id || null);
   }
 
-  function onDragStart(i) { setDragIdx(i); }
+  function onDragStart(i) {
+    setDragIdx(i);
+    setExpandedAlbumId(null);
+  }
   function onDragOver(e, i) { e.preventDefault(); setDragOver(i); }
   function onDrop(i) {
     if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDragOver(null); return; }
@@ -601,6 +708,8 @@ function App() {
   function onTouchDragStart(e, i) {
     touchDragRef.current = { active: true, startIdx: i, currentIdx: i };
     setDragIdx(i);
+    setExpandedAlbumId(null);
+    clearTimeout(longPressTimer.current);
   }
 
   function onTouchDragMove(e) {
@@ -869,36 +978,66 @@ function App() {
                       pl.albums.map((album, i) => {
                         const artUrl = album.images?.[1]?.url || album.images?.[0]?.url;
                         const isPlaying = nowPlayingAlbumId === album.id;
-                        return h('div', {
-                          key: album.id,
-                          'data-album-index': i,
-                          className: 'album-row' + (dragOver === i ? ' drag-over' : '') + (isPlaying ? ' now-playing' : '') + (dragIdx === i ? ' dragging' : ''),
-                          draggable: true,
-                          onClick: () => playAlbum(album.id),
-                          onDragStart: () => onDragStart(i),
-                          onDragOver: e => onDragOver(e, i),
-                          onDrop: () => onDrop(i),
-                          onDragEnd: () => { setDragIdx(null); setDragOver(null); }
-                        },
-                          h('span', {
-                            className: 'drag-handle',
-                            title: 'Hold to reorder',
-                            onTouchStart: e => { e.stopPropagation(); onTouchDragStart(e, i); },
-                            onTouchMove: e => onTouchDragMove(e),
-                            onTouchEnd: () => onTouchDragEnd(),
-                            onClick: e => e.stopPropagation()
-                          }, '⠿'),
-                          artUrl
-                            ? h('img', { className: 'album-art', src: artUrl, alt: '' })
-                            : h('div', { className: 'album-art', style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } }, '♫'),
-                          h('div', { className: 'album-info' },
-                            h('div', { className: 'album-name' }, album.name),
-                            h('div', { className: 'album-artist' }, (album.artists||[]).map(a=>a.name).join(', ')),
-                            h('div', { className: 'album-tracks-label' }, album.total_tracks + ' tracks')
+                        const isExpanded = expandedAlbumId === album.id;
+                        const tracks = albumTracks[album.id] || [];
+                        const nowPlayingTrackUri = playback?.item?.uri;
+
+                        return h(React.Fragment, { key: album.id },
+                          h('div', {
+                            'data-album-index': i,
+                            className: 'album-row' + (dragOver === i ? ' drag-over' : '') + (isPlaying ? ' now-playing' : '') + (dragIdx === i ? ' dragging' : '') + (isExpanded ? ' expanded' : ''),
+                            draggable: true,
+                            onClick: () => onAlbumClick(album.id),
+                            onMouseDown: e => onAlbumPressStart(e, album.id),
+                            onMouseUp: onAlbumPressEnd,
+                            onMouseLeave: onAlbumPressEnd,
+                            onTouchStart: e => onAlbumPressStart(e, album.id),
+                            onTouchEnd: onAlbumPressEnd,
+                            onDragStart: () => onDragStart(i),
+                            onDragOver: e => onDragOver(e, i),
+                            onDrop: () => onDrop(i),
+                            onDragEnd: () => { setDragIdx(null); setDragOver(null); }
+                          },
+                            h('span', {
+                              className: 'drag-handle',
+                              title: 'Hold to reorder',
+                              onTouchStart: e => { e.stopPropagation(); onTouchDragStart(e, i); },
+                              onTouchMove: e => onTouchDragMove(e),
+                              onTouchEnd: () => onTouchDragEnd(),
+                              onClick: e => e.stopPropagation()
+                            }, '⠿'),
+                            artUrl
+                              ? h('img', { className: 'album-art', src: artUrl, alt: '' })
+                              : h('div', { className: 'album-art', style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } }, '♫'),
+                            h('div', { className: 'album-info' },
+                              h('div', { className: 'album-name' }, album.name),
+                              h('div', { className: 'album-artist' }, (album.artists||[]).map(a=>a.name).join(', ')),
+                              h('div', { className: 'album-tracks-label' }, album.total_tracks + ' tracks')
+                            ),
+                            h('div', { className: 'album-actions' },
+                              isPlaying && h('div', { className: 'playing-dot' }),
+                              h('span', { className: 'expand-indicator' + (isExpanded ? ' open' : '') }, '▾'),
+                              h('button', { className: 'icon-btn', title: 'Remove', onClick: e => { e.stopPropagation(); removeAlbum(pl.id, album.id); } }, '🗑')
+                            )
                           ),
-                          h('div', { className: 'album-actions' },
-                            isPlaying && h('div', { className: 'playing-dot' }),
-                            h('button', { className: 'icon-btn', title: 'Remove', onClick: e => { e.stopPropagation(); removeAlbum(pl.id, album.id); } }, '🗑')
+                          // Track list
+                          isExpanded && h('div', { className: 'track-list' },
+                            loadingTracks === album.id
+                              ? h('div', { style: { padding: '12px 24px', fontSize: '12px', color: 'var(--text3)' } }, 'Loading tracks…')
+                              : tracks.map((track, ti) => {
+                                  const isTrackPlaying = nowPlayingTrackUri === track.uri;
+                                  return h('div', {
+                                    key: track.id,
+                                    className: 'track-item' + (isTrackPlaying ? ' track-playing' : ''),
+                                    onClick: e => { e.stopPropagation(); playTrack(track.uri, album.id); }
+                                  },
+                                    isTrackPlaying
+                                      ? h('div', { className: 'track-playing-dot' })
+                                      : h('span', { className: 'track-num' }, ti + 1),
+                                    h('div', { className: 'track-name' }, track.name),
+                                    h('span', { className: 'track-duration' }, fmtMs(track.duration_ms))
+                                  );
+                                })
                           )
                         );
                       })
