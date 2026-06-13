@@ -626,7 +626,7 @@ function App() {
           });
         }
       }
-    } catch(e) { /* silent — don't interrupt user */ }
+    } catch(e) { /* silent - do not interrupt user */ }
   }
 
   function createPlaylist() {
@@ -1228,7 +1228,7 @@ function App() {
           h('ul', {},
             h('li', {}, 'Your playlists are saved on this device only'),
             h('li', {}, 'Albumify requires a Spotify Premium account for playback control'),
-            h('li', {}, 'Editing the synced playlist directly in Spotify won't affect Albumify — Albumify is always the source of truth')
+            h('li', {}, "Editing the synced playlist directly in Spotify won't affect Albumify — Albumify is always the source of truth")
           )
         ),
 
