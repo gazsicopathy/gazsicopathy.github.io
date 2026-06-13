@@ -611,8 +611,8 @@ function App() {
           method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
         });
       }
-      // If currently playing from this playlist, seek to correct position
-      // so the current track continues uninterrupted in the new context
+      // If currently playing from this playlist, reanchor playback to the
+      // same track by URI so reordering never changes what is playing.
       const pb = await api('https://api.spotify.com/v1/me/player');
       if (pb && pb.item && pb.context &&
           pb.context.uri === 'spotify:playlist:' + updatedPl.spotifyPlId) {
@@ -622,12 +622,14 @@ function App() {
         if (newOffset >= 0) {
           const deviceId = getBestDeviceId();
           const tok = await getToken();
+          // Use offset.uri so Spotify finds the track by identity,
+          // not by position — position may have shifted after reorder
           await fetch('https://api.spotify.com/v1/me/player/play' + (deviceId ? '?device_id=' + deviceId : ''), {
             method: 'PUT',
             headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               context_uri: 'spotify:playlist:' + updatedPl.spotifyPlId,
-              offset: { position: newOffset },
+              offset: { uri: currentUri },
               position_ms: currentMs
             })
           });
