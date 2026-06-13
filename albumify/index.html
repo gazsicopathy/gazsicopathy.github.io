@@ -191,6 +191,15 @@
       .sidebar.open { transform: translateX(0); }
     }
 
+    .help-section { margin-bottom: 20px; }
+    .help-section h3 { font-size: 13px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .help-section p, .help-section li { font-size: 13px; color: var(--text2); line-height: 1.6; }
+    .help-section ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    .help-section li::before { content: "→ "; color: var(--green); }
+    .help-divider { height: 1px; background: var(--border); margin: 16px 0; }
+    .help-btn { width: 100%; background: none; border: none; color: var(--text3); font-size: 13px; padding: 10px 16px; text-align: left; display: flex; align-items: center; gap: 8px; transition: all 0.1s; cursor: pointer; }
+    .help-btn:hover, .help-btn:active { background: var(--bg3); color: var(--text2); }
+
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
@@ -323,6 +332,7 @@ function App() {
   const longPressTimer = useRef(null);
   const longPressTriggered = useRef(false);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const searchTimer = useRef(null);
   const pollTimer = useRef(null);
 
@@ -885,6 +895,9 @@ function App() {
         );
       })
     ),
+    h('button', { className: 'help-btn', onClick: () => { setShowHelp(true); setDrawerOpen(false); } },
+      '?  Help & how it works'
+    ),
     h('div', { className: 'sidebar-user' },
       user && h(React.Fragment, {},
         h('div', { className: 'user-avatar' },
@@ -1162,6 +1175,66 @@ function App() {
                   h('button', { className: 'action-btn', onClick: () => setShowImport(false) }, 'Cancel')
                 )
               )
+      )
+    ),
+
+    // Help modal
+    showHelp && h('div', { className: 'modal-overlay', onClick: e => e.target === e.currentTarget && setShowHelp(false) },
+      h('div', { className: 'modal' },
+        h('h2', {}, 'How to use Albumify'),
+
+        h('div', { className: 'help-section' },
+          h('p', {}, 'Albumify lets you create playlists of whole albums, rather than individual tracks. It works alongside your existing Spotify account and controls playback on any active Spotify device.')
+        ),
+
+        h('div', { className: 'help-divider' }),
+
+        h('div', { className: 'help-section' },
+          h('h3', {}, 'Getting started'),
+          h('ul', {},
+            h('li', {}, 'Tap + New playlist to create an album playlist'),
+            h('li', {}, 'Use the search bar to find albums and add them'),
+            h('li', {}, 'Tap any album to see its tracks, or long press to play it immediately')
+          )
+        ),
+
+        h('div', { className: 'help-divider' }),
+
+        h('div', { className: 'help-section' },
+          h('h3', {}, 'Playback'),
+          h('ul', {},
+            h('li', {}, 'Albumify controls whichever Spotify device is currently active — make sure Spotify is open on your phone or computer first'),
+            h('li', {}, 'When you play an album, Albumify syncs your playlist to Spotify behind the scenes so albums advance automatically when one finishes'),
+            h('li', {}, 'Use the player bar at the bottom to play/pause, skip tracks, or jump between albums with the ⏮ ⏭ buttons')
+          )
+        ),
+
+        h('div', { className: 'help-divider' }),
+
+        h('div', { className: 'help-section' },
+          h('h3', {}, 'Managing playlists'),
+          h('ul', {},
+            h('li', {}, 'Drag the ⠿ handle to reorder albums'),
+            h('li', {}, 'Shuffle randomises the album order'),
+            h('li', {}, 'Sync to Spotify creates a real Spotify playlist from your album playlist — useful for sharing or playing outside Albumify'),
+            h('li', {}, 'Once synced, the button changes to Update and keeps the Spotify playlist in sync automatically')
+          )
+        ),
+
+        h('div', { className: 'help-divider' }),
+
+        h('div', { className: 'help-section' },
+          h('h3', {}, 'Good to know'),
+          h('ul', {},
+            h('li', {}, 'Your playlists are saved on this device only'),
+            h('li', {}, 'Albumify requires a Spotify Premium account for playback control'),
+            h('li', {}, 'Editing the synced playlist directly in Spotify won't affect Albumify — Albumify is always the source of truth')
+          )
+        ),
+
+        h('div', { className: 'modal-actions' },
+          h('button', { className: 'action-btn primary', onClick: () => setShowHelp(false) }, 'Got it')
+        )
       )
     ),
 
