@@ -247,7 +247,7 @@ async function getToken() {
   const exp = parseInt(localStorage.getItem('spotify_token_expires') || '0');
   if (Date.now() > exp - 60000) {
     const refresh = localStorage.getItem('spotify_refresh_token');
-    if (!refresh) return null;
+    if (!refresh) { window.__albumifySessionExpired && window.__albumifySessionExpired(); return null; }
     const res = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ client_id: CLIENT_ID, grant_type: 'refresh_token', refresh_token: refresh })
@@ -258,6 +258,8 @@ async function getToken() {
       localStorage.setItem('spotify_token_expires', Date.now() + data.expires_in * 1000);
       return data.access_token;
     }
+    // Refresh failed — session has expired
+    window.__albumifySessionExpired && window.__albumifySessionExpired();
     return null;
   }
   return localStorage.getItem('spotify_access_token');
@@ -303,10 +305,23 @@ function App() {
   const [playback, setPlayback] = useState(null);
   const [devices, setDevices] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const searchTimer = useRef(null);
   const pollTimer = useRef(null);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+
+  // Register global session expiry handler — clears tokens and returns to login screen
+  useEffect(() => {
+    window.__albumifySessionExpired = () => {
+      ['spotify_access_token','spotify_refresh_token','spotify_token_expires'].forEach(k => localStorage.removeItem(k));
+      setToken(null);
+      setUser(null);
+      setPlayback(null);
+      setSessionExpired(true);
+    };
+    return () => { window.__albumifySessionExpired = null; };
+  }, []);
 
   // OAuth callback
   useEffect(() => {
@@ -731,8 +746,10 @@ function App() {
   if (!token) {
     return h('div', { className: 'login-screen' },
       h('div', { className: 'login-logo' }, 'Albumify'),
-      h('div', { className: 'login-sub' }, 'Your music, the way you actually listen — by album.'),
-      h('button', { className: 'login-btn', onClick: startLogin }, 'Connect with Spotify')
+      sessionExpired
+        ? h('div', { className: 'login-sub', style: { color: '#ff6b6b' } }, 'Your session has expired. Please sign in again.')
+        : h('div', { className: 'login-sub' }, 'Your music, the way you actually listen — by album.'),
+      h('button', { className: 'login-btn', onClick: () => { setSessionExpired(false); startLogin(); } }, 'Connect with Spotify')
     );
   }
 
