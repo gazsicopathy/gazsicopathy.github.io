@@ -877,12 +877,12 @@ function App() {
   const progress = (playback?.item) ? ((playback.progress_ms / playback.item.duration_ms) * 100) : 0;
 
   // ── Sidebar contents (shared between desktop + drawer) ──
-  const sidebarContent = h(React.Fragment, {},
-    h('div', { className: 'sidebar-header' },
+  const sidebarContent = [
+    h('div', { key: 'header', className: 'sidebar-header' },
       h('div', { className: 'logo' }, 'Albumify'),
       h('button', { className: 'new-pl-btn', onClick: () => { setShowNew(true); setDrawerOpen(false); } }, '+ New playlist')
     ),
-    h('div', { className: 'pl-list' },
+    h('div', { key: 'list', className: 'pl-list' },
       playlists.length === 0 && h('div', { style: { padding: '16px', fontSize: '12px', color: 'var(--text3)', textAlign: 'center' } }, 'No playlists yet'),
       playlists.map(p => {
         const img = p.albums?.[0]?.images?.[1]?.url || p.albums?.[0]?.images?.[0]?.url;
@@ -895,10 +895,10 @@ function App() {
         );
       })
     ),
-    h('button', { className: 'help-btn', onClick: () => { setShowHelp(true); setDrawerOpen(false); } },
+    h('button', { key: 'help', className: 'help-btn', onClick: () => { setShowHelp(true); setDrawerOpen(false); } },
       '?  Help & how it works'
     ),
-    h('div', { className: 'sidebar-user' },
+    h('div', { key: 'user', className: 'sidebar-user' },
       user && h(React.Fragment, {},
         h('div', { className: 'user-avatar' },
           user.images?.[0]?.url ? h('img', { src: user.images[0].url, alt: '' }) : h('span', {}, (user.display_name||'?')[0])
@@ -907,7 +907,7 @@ function App() {
         h('button', { className: 'logout-btn', onClick: logout }, 'Sign out')
       )
     )
-  );
+  ];
 
   return h('div', { className: 'layout' },
 
