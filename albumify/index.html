@@ -91,7 +91,7 @@
 
     /* ── Album list ── */
     .album-list { padding: 8px 0 120px; }
-    .album-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 0; transition: background 0.1s; user-select: none; -webkit-user-select: none; }
+    .album-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 0; transition: background 0.1s; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     .album-row:active { background: var(--bg3); }
     .album-row.drag-over { background: var(--bg4); outline: 2px solid var(--green); }
     .album-row.now-playing { background: rgba(29,185,84,0.08); }
@@ -1135,6 +1135,7 @@ function App() {
                             className: 'album-row' + (dragOver === i ? ' drag-over' : '') + (isPlaying ? ' now-playing' : '') + (dragIdx === i ? ' dragging' : '') + (isExpanded ? ' expanded' : ''),
                             draggable: true,
                             onClick: () => onAlbumClick(album.id),
+                            onContextMenu: e => e.preventDefault(),
                             onDragStart: () => onDragStart(i),
                             onDragOver: e => onDragOver(e, i),
                             onDrop: () => onDrop(i),
