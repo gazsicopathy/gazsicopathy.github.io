@@ -90,7 +90,8 @@
     .pl-stats { font-size: 12px; color: var(--text2); margin-top: 4px; }
 
     /* ── Album list ── */
-    .album-list { padding: 8px 0 120px; }
+    .album-list { padding: 8px 0 120px; touch-action: pan-y; }
+    .album-list * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
     .album-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 0; transition: background 0.1s; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     .album-row:active { background: var(--bg3); }
     .album-row.drag-over { background: var(--bg4); outline: 2px solid var(--green); }
@@ -738,7 +739,6 @@ function App() {
     touchDragRef.current = { active: true, startIdx: i, currentIdx: i };
     setDragIdx(i);
     setExpandedAlbumId(null);
-    clearTimeout(longPressTimer.current);
   }
 
   function onTouchDragMove(e) {
