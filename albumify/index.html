@@ -331,6 +331,7 @@ function App() {
   const [devices, setDevices] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [expandedAlbumId, setExpandedAlbumId] = useState(null);
+  const trackCache = useRef({}); // session-level cache: albumId -> track array
   const [albumTracks, setAlbumTracks] = useState({});
   const [loadingTracks, setLoadingTracks] = useState(null);
   const longPressTimer = useRef(null);
@@ -428,44 +429,48 @@ function App() {
   const activePl = playlists.find(p => p.id === activeId);
   const nowPlayingAlbumId = playback?.item?.album?.id;
 
-  // Play an album within the context of the full Albumify playlist.
-  // We sync the playlist to Spotify first (or reuse existing), then play
-  // from the correct offset so Spotify auto-advances through all albums.
+  // Push track list to a Spotify playlist (create or update)
+  async function pushToSpotify(pl, allTracks) {
+    let plId = pl.spotifyPlId;
+    if (plId) {
+      await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+        method: 'PUT', body: JSON.stringify({ uris: allTracks.slice(0,100).map(t=>t.uri) })
+      });
+      for (let i = 100; i < allTracks.length; i += 100) {
+        await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+          method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
+        });
+      }
+    } else {
+      const created = await api('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
+        method: 'POST', body: JSON.stringify({ name: pl.name + ' (Albumify)', public: false, description: 'Created by Albumify' })
+      });
+      plId = created.id;
+      for (let i = 0; i < allTracks.length; i += 100) {
+        await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+          method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
+        });
+      }
+      persist(playlists.map(p => p.id !== pl.id ? p : { ...p, spotifyPlId: plId }));
+      pl = { ...pl, spotifyPlId: plId };
+    }
+    return plId;
+  }
+
+  // Play an album within the full playlist context.
+  // If playlist is already synced, skip straight to the album — no resync needed.
   async function playAlbumInContext(albumId, pl) {
     if (!pl || !user) return;
     showToast('Loading…');
     try {
-      // Ensure we have a synced Spotify playlist
+      const allTracks = await fetchAllTracks(pl);
       let plId = pl.spotifyPlId;
-      const allTracks = [];
-      for (const album of pl.albums) {
-        const data = await api('https://api.spotify.com/v1/albums/' + album.id + '/tracks?limit=50');
-        if (data?.items) allTracks.push(...data.items.map(t => ({ uri: t.uri, albumId: album.id })));
+
+      if (!plId) {
+        // First time — create Spotify playlist
+        plId = await pushToSpotify(pl, allTracks);
       }
-      if (plId) {
-        // Update existing playlist tracks
-        await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
-          method: 'PUT', body: JSON.stringify({ uris: allTracks.slice(0,100).map(t=>t.uri) })
-        });
-        for (let i = 100; i < allTracks.length; i += 100) {
-          await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
-            method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
-          });
-        }
-      } else {
-        // Create new Spotify playlist
-        const created = await api('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
-          method: 'POST', body: JSON.stringify({ name: pl.name + ' (Albumify)', public: false, description: 'Created by Albumify' })
-        });
-        plId = created.id;
-        for (let i = 0; i < allTracks.length; i += 100) {
-          await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
-            method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
-          });
-        }
-        persist(playlists.map(p => p.id !== pl.id ? p : { ...p, spotifyPlId: plId }));
-      }
-      // Find the offset of the first track of the target album
+      // Seek directly to first track of album — no resync required
       const offset = allTracks.findIndex(t => t.albumId === albumId);
       const deviceId = getBestDeviceId();
       const body = {
@@ -487,15 +492,48 @@ function App() {
     playAlbumInContext(albumId, activePl);
   }
 
-  // Fetch and cache tracks for an album
+  // Fetch tracks for a single album, using session cache
   async function fetchAlbumTracks(albumId) {
-    if (albumTracks[albumId]) return albumTracks[albumId];
+    if (trackCache.current[albumId]) return trackCache.current[albumId];
     setLoadingTracks(albumId);
-    const data = await api('https://api.spotify.com/v1/albums/' + albumId + '/tracks?limit=50');
-    const tracks = data?.items || [];
+    // Handle albums with more than 50 tracks
+    let tracks = [];
+    let url = 'https://api.spotify.com/v1/albums/' + albumId + '/tracks?limit=50';
+    while (url) {
+      const data = await api(url);
+      tracks = tracks.concat(data?.items || []);
+      url = data?.next || null;
+    }
+    trackCache.current[albumId] = tracks;
     setAlbumTracks(prev => ({ ...prev, [albumId]: tracks }));
     setLoadingTracks(null);
     return tracks;
+  }
+
+  // Fetch tracks for ALL albums in a playlist in parallel, using cache
+  async function fetchAllTracks(pl) {
+    const uncached = pl.albums.filter(a => !trackCache.current[a.id]);
+    if (uncached.length > 0) {
+      // Fetch uncached albums in parallel (batches of 10 to avoid rate limits)
+      const batchSize = 10;
+      for (let i = 0; i < uncached.length; i += batchSize) {
+        const batch = uncached.slice(i, i + batchSize);
+        await Promise.all(batch.map(async album => {
+          let tracks = [];
+          let url = 'https://api.spotify.com/v1/albums/' + album.id + '/tracks?limit=50';
+          while (url) {
+            const data = await api(url);
+            tracks = tracks.concat(data?.items || []);
+            url = data?.next || null;
+          }
+          trackCache.current[album.id] = tracks;
+        }));
+      }
+    }
+    // Return flat track list in album order
+    return pl.albums.flatMap(a =>
+      (trackCache.current[a.id] || []).map(t => ({ uri: t.uri, albumId: a.id }))
+    );
   }
 
   // Toggle album track list expansion
@@ -533,33 +571,9 @@ function App() {
     if (!activePl || !user) return;
     showToast('Loading…');
     try {
+      const allTracks = await fetchAllTracks(activePl);
       let plId = activePl.spotifyPlId;
-      const allTracks = [];
-      for (const album of activePl.albums) {
-        const data = await api('https://api.spotify.com/v1/albums/' + album.id + '/tracks?limit=50');
-        if (data?.items) allTracks.push(...data.items.map(t => ({ uri: t.uri, albumId: album.id })));
-      }
-      if (plId) {
-        await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
-          method: 'PUT', body: JSON.stringify({ uris: allTracks.slice(0,100).map(t=>t.uri) })
-        });
-        for (let i = 100; i < allTracks.length; i += 100) {
-          await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
-            method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
-          });
-        }
-      } else {
-        const created = await api('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
-          method: 'POST', body: JSON.stringify({ name: activePl.name + ' (Albumify)', public: false, description: 'Created by Albumify' })
-        });
-        plId = created.id;
-        for (let i = 0; i < allTracks.length; i += 100) {
-          await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
-            method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
-          });
-        }
-        persist(playlists.map(p => p.id !== activeId ? p : { ...p, spotifyPlId: plId }));
-      }
+      if (!plId) plId = await pushToSpotify(activePl, allTracks);
       const offset = allTracks.findIndex(t => t.uri === trackUri);
       const deviceId = getBestDeviceId();
       const body = { context_uri: 'spotify:playlist:' + plId, offset: { position: offset >= 0 ? offset : 0 } };
@@ -598,11 +612,8 @@ function App() {
   async function backgroundSync(updatedPl) {
     if (!updatedPl || !updatedPl.spotifyPlId || !user) return;
     try {
-      const allTracks = [];
-      for (const album of updatedPl.albums) {
-        const data = await api('https://api.spotify.com/v1/albums/' + album.id + '/tracks?limit=50');
-        if (data?.items) allTracks.push(...data.items.map(t => ({ uri: t.uri, albumId: album.id })));
-      }
+      // Use parallel fetching with cache — fast even for large playlists
+      const allTracks = await fetchAllTracks(updatedPl);
       // Replace playlist tracks with new order
       await api('https://api.spotify.com/v1/playlists/' + updatedPl.spotifyPlId + '/tracks', {
         method: 'PUT', body: JSON.stringify({ uris: allTracks.slice(0,100).map(t=>t.uri) })
@@ -771,12 +782,9 @@ function App() {
     if (!activePl || !user) return;
     setSyncing(true);
     try {
-      // Gather all track URIs in album order
-      const allTracks = [];
-      for (const album of activePl.albums) {
-        const data = await api('https://api.spotify.com/v1/albums/' + album.id + '/tracks?limit=50');
-        if (data?.items) allTracks.push(...data.items.map(t => t.uri));
-      }
+      // Gather all tracks using parallel cache-aware fetching
+      const allTrackObjs = await fetchAllTracks(activePl);
+      const allTracks = allTrackObjs.map(t => t.uri);
 
       let plId = activePl.spotifyPlId;
 
