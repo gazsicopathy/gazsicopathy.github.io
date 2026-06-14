@@ -337,6 +337,7 @@ function App() {
   const longPressTimer = useRef(null);
   const longPressTriggered = useRef(false);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showImportExport, setShowImportExport] = useState(false);
   const [importSearchQuery, setImportSearchQuery] = useState('');
@@ -344,6 +345,7 @@ function App() {
   const fileInputRef = useRef(null);
   const searchTimer = useRef(null);
   const pollTimer = useRef(null);
+  const suppressPoll = useRef(false);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
@@ -386,6 +388,7 @@ function App() {
   }, [searchQuery, token]);
 
   function fetchPlayback() {
+    if (suppressPoll.current) return;
     Promise.all([
       api('https://api.spotify.com/v1/me/player').catch(() => null),
       api('https://api.spotify.com/v1/me/player/devices').catch(() => null)
@@ -461,15 +464,13 @@ function App() {
   // If playlist is already synced, skip straight to the album — no resync needed.
   async function playAlbumInContext(albumId, pl) {
     if (!pl || !user) return;
+    suppressPoll.current = true;
+    setIsLoading(true);
     showToast('Loading…');
     try {
       const allTracks = await fetchAllTracks(pl);
       let plId = pl.spotifyPlId;
-
-      if (!plId) {
-        // First time — create Spotify playlist
-        plId = await pushToSpotify(pl, allTracks);
-      }
+      if (!plId) plId = await pushToSpotify(pl, allTracks);
       // Seek directly to first track of album — no resync required
       const offset = allTracks.findIndex(t => t.albumId === albumId);
       const deviceId = getBestDeviceId();
@@ -484,8 +485,12 @@ function App() {
         headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      setTimeout(fetchPlayback, 1000);
     } catch(e) { showToast('Playback failed — try again'); }
+    finally {
+      setIsLoading(false);
+      suppressPoll.current = false;
+      setTimeout(fetchPlayback, 800);
+    }
   }
 
   function playAlbum(albumId) {
@@ -569,6 +574,7 @@ function App() {
   // Play a specific track within the playlist context
   async function playTrack(trackUri, albumId) {
     if (!activePl || !user) return;
+    suppressPoll.current = true;
     showToast('Loading…');
     try {
       const allTracks = await fetchAllTracks(activePl);
@@ -584,8 +590,11 @@ function App() {
         headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      setTimeout(fetchPlayback, 1000);
     } catch(e) { showToast('Playback failed — try again'); }
+    finally {
+      suppressPoll.current = false;
+      setTimeout(fetchPlayback, 800);
+    }
   }
 
   function nextAlbum() {
@@ -611,6 +620,7 @@ function App() {
   // then seek back to keep the current track uninterrupted.
   async function backgroundSync(updatedPl) {
     if (!updatedPl || !updatedPl.spotifyPlId || !user) return;
+    suppressPoll.current = true;
     try {
       // Use parallel fetching with cache — fast even for large playlists
       const allTracks = await fetchAllTracks(updatedPl);
@@ -648,6 +658,7 @@ function App() {
         }
       }
     } catch(e) { /* silent - do not interrupt user */ }
+    finally { suppressPoll.current = false; setTimeout(fetchPlayback, 800); }
   }
 
   function createPlaylist() {
@@ -1226,9 +1237,9 @@ function App() {
                 h('div', { className: 'player-buttons' },
                   h('button', { className: 'player-btn', title: 'Prev album', onClick: prevAlbum }, '⏮'),
                   h('button', { className: 'player-btn sm', title: 'Prev track', onClick: () => playerCmd('previous', 'POST') }, '◀'),
-                  h('button', { className: 'player-btn play', onClick: () => playerCmd(playback.is_playing ? 'pause' : 'play') }, playback.is_playing ? '❙❙' : '▶'),
+                  h('button', { className: 'player-btn play', onClick: () => playerCmd(playback.is_playing ? 'pause' : 'play'), disabled: isLoading }, isLoading ? '…' : (playback.is_playing ? '❙❙' : '▶')),
                   h('button', { className: 'player-btn sm', title: 'Next track', onClick: () => playerCmd('next', 'POST') }, '▶'),
-                  h('button', { className: 'player-btn', title: 'Next album', onClick: nextAlbum }, '⏭')
+                  h('button', { className: 'player-btn', title: 'Next album', onClick: nextAlbum, disabled: isLoading }, '⏭')
                 )
               )
             )
