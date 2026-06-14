@@ -340,6 +340,8 @@ function App() {
   const [dragOver, setDragOver] = useState(null);
   const touchDragRef = useRef({ active: false, startIdx: null, currentIdx: null });
   const [playback, setPlayback] = useState(null);
+  const [localProgress, setLocalProgress] = useState(0);
+  const progressTicker = useRef(null);
   const [devices, setDevices] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [expandedAlbumId, setExpandedAlbumId] = useState(null);
@@ -409,6 +411,7 @@ function App() {
       if (playerData && playerData.item) {
         // Active playback with a track — full state
         setPlayback(playerData);
+        setLocalProgress(playerData.progress_ms || 0);
       } else {
         const activeDevice = devList.find(d => d.is_active) || devList[0] || null;
         setPlayback(prev => {
@@ -432,6 +435,21 @@ function App() {
     pollTimer.current = setInterval(fetchPlayback, 3000);
     return () => clearInterval(pollTimer.current);
   }, [token]);
+
+  // Smooth local progress ticker — advances every second while playing,
+  // corrected to the true value on each 3s poll. Keeps the timer steady.
+  useEffect(() => {
+    clearInterval(progressTicker.current);
+    if (playback && playback.item && playback.is_playing) {
+      progressTicker.current = setInterval(() => {
+        setLocalProgress(prev => {
+          const dur = playback.item.duration_ms || 0;
+          return dur ? Math.min(prev + 1000, dur) : prev + 1000;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(progressTicker.current);
+  }, [playback]);
 
   function getBestDeviceId() {
     if (!devices || !devices.length) return null;
@@ -1029,7 +1047,7 @@ function App() {
 
   const pl = activePl;
   const coverImgs = pl?.albums?.slice(0,4).map(a => a.images?.[1]?.url || a.images?.[0]?.url).filter(Boolean) || [];
-  const progress = (playback?.item) ? ((playback.progress_ms / playback.item.duration_ms) * 100) : 0;
+  const progress = (playback?.item) ? ((localProgress / playback.item.duration_ms) * 100) : 0;
 
   // ── Sidebar contents (shared between desktop + drawer) ──
   const sidebarContent = [
@@ -1245,10 +1263,12 @@ function App() {
               ),
               h('div', { className: 'player-bottom' },
                 h('div', { className: 'progress-wrap' },
-                  h('span', { className: 'progress-time' }, fmtMs(playback.progress_ms)),
+                  h('span', { className: 'progress-time' }, fmtMs(localProgress)),
                   h('div', { className: 'progress-bar', onClick: e => {
                     const rect = e.currentTarget.getBoundingClientRect();
-                    playerCmd('seek?position_ms=' + Math.floor(((e.clientX - rect.left) / rect.width) * playback.item.duration_ms));
+                    const newMs = Math.floor(((e.clientX - rect.left) / rect.width) * playback.item.duration_ms);
+                    setLocalProgress(newMs);
+                    playerCmd('seek?position_ms=' + newMs);
                   }}, h('div', { className: 'progress-fill', style: { width: progress.toFixed(1) + '%' } })),
                   h('span', { className: 'progress-time right' }, fmtMs(playback.item.duration_ms))
                 ),
