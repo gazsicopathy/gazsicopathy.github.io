@@ -556,18 +556,29 @@ function App() {
     longPressTriggered.current = false;
     longPressTimer.current = setTimeout(() => {
       longPressTriggered.current = true;
-      playAlbum(albumId);
-      // Collapse track list if open
-      if (expandedAlbumId === albumId) setExpandedAlbumId(null);
+      // Defer the async playback call outside the touch event
+      // so the UI thread is free immediately after the long press
+      setTimeout(() => {
+        playAlbum(albumId);
+        if (expandedAlbumId === albumId) setExpandedAlbumId(null);
+      }, 0);
     }, 500);
   }
 
-  function onAlbumPressEnd() {
+  function onAlbumPressEnd(e) {
     clearTimeout(longPressTimer.current);
+    // Prevent the subsequent click event firing after a long press
+    if (longPressTriggered.current && e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   }
 
   function onAlbumClick(albumId) {
-    if (longPressTriggered.current) return; // was a long press, ignore click
+    if (longPressTriggered.current) {
+      longPressTriggered.current = false;
+      return; // was a long press, ignore click
+    }
     toggleExpand(albumId);
   }
 
