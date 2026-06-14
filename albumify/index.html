@@ -407,10 +407,21 @@ function App() {
       const devList = devData?.devices || [];
       setDevices(devList);
       if (playerData && playerData.item) {
+        // Active playback with a track — full state
         setPlayback(playerData);
       } else {
         const activeDevice = devList.find(d => d.is_active) || devList[0] || null;
-        setPlayback(activeDevice ? { item: null, is_playing: false, device: activeDevice, progress_ms: 0 } : null);
+        setPlayback(prev => {
+          // If we already had a playing track and a device is still present,
+          // keep showing it through brief transitions (e.g. just after
+          // starting an album) rather than collapsing the player bar.
+          if (prev && prev.item && activeDevice) {
+            return prev;
+          }
+          return activeDevice
+            ? { item: null, is_playing: false, device: activeDevice, progress_ms: 0 }
+            : null;
+        });
       }
     });
   }
@@ -501,6 +512,7 @@ function App() {
       setIsLoading(false);
       suppressPoll.current = false;
       setTimeout(fetchPlayback, 800);
+      setTimeout(fetchPlayback, 2000);
     }
   }
 
@@ -510,7 +522,11 @@ function App() {
 
   // Fetch tracks for a single album, using session cache
   async function fetchAlbumTracks(albumId) {
-    if (trackCache.current[albumId]) return trackCache.current[albumId];
+    // Cache hit — still push to React state so the expanded list renders
+    if (trackCache.current[albumId]) {
+      setAlbumTracks(prev => ({ ...prev, [albumId]: trackCache.current[albumId] }));
+      return trackCache.current[albumId];
+    }
     setLoadingTracks(albumId);
     // Handle albums with more than 50 tracks
     let tracks = [];
@@ -589,6 +605,7 @@ function App() {
     finally {
       suppressPoll.current = false;
       setTimeout(fetchPlayback, 800);
+      setTimeout(fetchPlayback, 2000);
     }
   }
 
