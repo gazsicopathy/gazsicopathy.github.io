@@ -338,6 +338,7 @@ function App() {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showImportExport, setShowImportExport] = useState(false);
+  const [importSearchQuery, setImportSearchQuery] = useState('');
   const [pendingImport, setPendingImport] = useState(null);
   const fileInputRef = useRef(null);
   const searchTimer = useRef(null);
@@ -841,8 +842,19 @@ function App() {
 
   async function openImport() {
     setShowImport(true); setImportAlbums(null); setImportLoading(false);
-    const data = await api('https://api.spotify.com/v1/me/playlists?limit=20');
-    setSpotifyPls(data?.items || []);
+    setImportSearchQuery('');
+    // Fetch ALL playlists via pagination
+    let all = [];
+    let url = 'https://api.spotify.com/v1/me/playlists?limit=50';
+    while (url) {
+      const data = await api(url);
+      const items = data?.items || [];
+      all = all.concat(items);
+      url = data?.next;
+    }
+    // Exclude Albumify-generated playlists
+    all = all.filter(p => p && p.name && !p.name.endsWith('(Albumify)'));
+    setSpotifyPls(all);
   }
 
   async function importPlaylist(sp) {
@@ -1274,21 +1286,32 @@ function App() {
                 )
               )
             : h(React.Fragment, {},
-                h('p', { style: { fontSize: '14px', color: 'var(--text2)', marginBottom: '12px' } }, 'Pick a Spotify playlist to import.'),
+                h('p', { style: { fontSize: '14px', color: 'var(--text2)', marginBottom: '12px' } },
+                  'Pick a Spotify playlist to import. Found ' + spotifyPls.length + ' playlists.'
+                ),
+                h('input', {
+                  className: 'modal-input',
+                  placeholder: 'Search playlists…',
+                  value: importSearchQuery,
+                  onChange: e => setImportSearchQuery(e.target.value),
+                  style: { marginBottom: '8px' }
+                }),
                 h('div', { className: 'scrollable' },
-                  spotifyPls.map(sp => {
-                    const img = sp.images?.[0]?.url;
-                    return h('div', { key: sp.id, className: 'import-item', onClick: () => importPlaylist(sp) },
-                      img && h('img', { className: 'import-art', src: img, alt: '' }),
-                      h('div', {},
-                        h('div', { style: { fontWeight: 600, fontSize: '13px' } }, sp.name),
-                        h('div', { style: { fontSize: '11px', color: 'var(--text2)' } }, (sp.tracks?.total || 0) + ' tracks')
-                      )
-                    );
-                  })
+                  spotifyPls
+                    .filter(sp => !importSearchQuery.trim() || sp.name.toLowerCase().includes(importSearchQuery.toLowerCase()))
+                    .map(sp => {
+                      const img = sp.images?.[0]?.url;
+                      return h('div', { key: sp.id, className: 'import-item', onClick: () => importPlaylist(sp) },
+                        img && h('img', { className: 'import-art', src: img, alt: '' }),
+                        h('div', {},
+                          h('div', { style: { fontWeight: 600, fontSize: '13px' } }, sp.name),
+                          h('div', { style: { fontSize: '11px', color: 'var(--text2)' } }, (sp.tracks?.total || 0) + ' tracks')
+                        )
+                      );
+                    })
                 ),
                 h('div', { className: 'modal-actions', style: { marginTop: 16 } },
-                  h('button', { className: 'action-btn', onClick: () => setShowImport(false) }, 'Cancel')
+                  h('button', { className: 'action-btn', onClick: () => { setShowImport(false); setImportSearchQuery(''); } }, 'Cancel')
                 )
               )
       )
