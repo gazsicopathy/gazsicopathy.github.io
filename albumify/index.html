@@ -719,12 +719,15 @@ function App() {
   }
   function onDragOver(e, i) { e.preventDefault(); setDragOver(i); }
   function onDrop(i) {
-    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDragOver(null); return; }
+    const from = dragIdx;
+    if (from === null || from === i) { setDragIdx(null); setDragOver(null); return; }
     let updated = null;
     const newPls = playlists.map(p => {
       if (p.id !== activeId) return p;
+      // Guard against stale indices that no longer match the array
+      if (from < 0 || from >= p.albums.length || i < 0 || i >= p.albums.length) return p;
       const albums = [...p.albums];
-      const [moved] = albums.splice(dragIdx, 1);
+      const [moved] = albums.splice(from, 1);
       albums.splice(i, 0, moved);
       updated = { ...p, albums };
       return updated;
@@ -764,6 +767,7 @@ function App() {
       let updated = null;
       const newPls = playlists.map(p => {
         if (p.id !== activeId) return p;
+        if (startIdx < 0 || startIdx >= p.albums.length || currentIdx < 0 || currentIdx >= p.albums.length) return p;
         const albums = [...p.albums];
         const [moved] = albums.splice(startIdx, 1);
         albums.splice(currentIdx, 0, moved);
@@ -1133,21 +1137,21 @@ function App() {
                           h('div', {
                             'data-album-index': i,
                             className: 'album-row' + (dragOver === i ? ' drag-over' : '') + (isPlaying ? ' now-playing' : '') + (dragIdx === i ? ' dragging' : '') + (isExpanded ? ' expanded' : ''),
-                            draggable: true,
                             onClick: () => onAlbumClick(album.id),
                             onContextMenu: e => e.preventDefault(),
-                            onDragStart: () => onDragStart(i),
-                            onDragOver: e => onDragOver(e, i),
-                            onDrop: () => onDrop(i),
-                            onDragEnd: () => { setDragIdx(null); setDragOver(null); }
+                            onDragOver: e => { if (dragIdx !== null) onDragOver(e, i); },
+                            onDrop: () => { if (dragIdx !== null) onDrop(i); }
                           },
                             h('span', {
                               className: 'drag-handle',
-                              title: 'Hold to reorder',
+                              title: 'Drag to reorder',
+                              draggable: true,
+                              onClick: e => e.stopPropagation(),
+                              onDragStart: e => { e.stopPropagation(); onDragStart(i); },
+                              onDragEnd: () => { setDragIdx(null); setDragOver(null); },
                               onTouchStart: e => { e.stopPropagation(); onTouchDragStart(e, i); },
                               onTouchMove: e => onTouchDragMove(e),
-                              onTouchEnd: () => onTouchDragEnd(),
-                              onClick: e => e.stopPropagation()
+                              onTouchEnd: () => onTouchDragEnd()
                             }, '⠿'),
                             artUrl
                               ? h('img', { className: 'album-art', src: artUrl, alt: '' })
