@@ -107,6 +107,10 @@
     .icon-btn:active { background: var(--bg4); color: var(--text); }
     .playing-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; animation: pulse 1.5s ease infinite; margin-right: 4px; }
     .track-list { background: var(--bg2); border-bottom: 1px solid var(--border); overflow: hidden; }
+    .track-list-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 6px 24px; border-bottom: 1px solid var(--border); }
+    .track-list-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); }
+    .play-album-btn { background: var(--green); color: #000; font-size: 12px; font-weight: 700; padding: 5px 14px; border-radius: 20px; display: flex; align-items: center; gap: 5px; }
+    .play-album-btn:active { background: #1ed760; }
     .track-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px 9px 24px; cursor: pointer; transition: background 0.1s; border-bottom: 1px solid rgba(255,255,255,0.04); }
     .track-item:last-child { border-bottom: none; }
     .track-item:active { background: var(--bg3); }
@@ -334,8 +338,7 @@ function App() {
   const trackCache = useRef({}); // session-level cache: albumId -> track array
   const [albumTracks, setAlbumTracks] = useState({});
   const [loadingTracks, setLoadingTracks] = useState(null);
-  const longPressTimer = useRef(null);
-  const longPressTriggered = useRef(false);
+
   const [sessionExpired, setSessionExpired] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -551,34 +554,7 @@ function App() {
     }
   }
 
-  // Long press handlers — long press plays the album
-  function onAlbumPressStart(e, albumId) {
-    longPressTriggered.current = false;
-    longPressTimer.current = setTimeout(() => {
-      longPressTriggered.current = true;
-      // Defer the async playback call outside the touch event
-      // so the UI thread is free immediately after the long press
-      setTimeout(() => {
-        playAlbum(albumId);
-        if (expandedAlbumId === albumId) setExpandedAlbumId(null);
-      }, 0);
-    }, 500);
-  }
-
-  function onAlbumPressEnd(e) {
-    clearTimeout(longPressTimer.current);
-    // Prevent the subsequent click event firing after a long press
-    if (longPressTriggered.current && e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }
-
   function onAlbumClick(albumId) {
-    if (longPressTriggered.current) {
-      longPressTriggered.current = false;
-      return; // was a long press, ignore click
-    }
     toggleExpand(albumId);
   }
 
@@ -1193,6 +1169,13 @@ function App() {
                           ),
                           // Track list
                           isExpanded && h('div', { className: 'track-list' },
+                            h('div', { className: 'track-list-header' },
+                              h('span', { className: 'track-list-title' }, album.name),
+                              h('button', {
+                                className: 'play-album-btn',
+                                onClick: e => { e.stopPropagation(); playAlbum(album.id); }
+                              }, '▶  Play album')
+                            ),
                             loadingTracks === album.id
                               ? h('div', { style: { padding: '12px 24px', fontSize: '12px', color: 'var(--text3)' } }, 'Loading tracks…')
                               : tracks.map((track, ti) => {
@@ -1384,7 +1367,7 @@ function App() {
           h('ul', {},
             h('li', {}, 'Tap + New playlist to create an album playlist'),
             h('li', {}, 'Use the search bar to find albums and add them'),
-            h('li', {}, 'Tap any album to see its tracks, or long press to play it immediately')
+            h('li', {}, 'Tap any album to expand its track list — then tap Play album to play from the start, or tap any track to play from there')
           )
         ),
 
