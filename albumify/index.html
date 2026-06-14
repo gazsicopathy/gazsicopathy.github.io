@@ -29,7 +29,7 @@
     img { display: block; }
 
     /* ── Layout ── */
-    .layout { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+    .layout { display: flex; flex-direction: column; position: fixed; inset: 0; height: 100vh; height: 100dvh; overflow: hidden; }
     .app { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 
     /* ── Sidebar (desktop) ── */
@@ -193,7 +193,7 @@
       .modal-overlay { align-items: center; }
       .modal { border-radius: var(--radius-lg); width: 480px; max-width: calc(100vw - 32px); padding: 24px; }
       .album-row { padding: 6px 16px; }
-      .album-list { padding: 8px 0 16px; }
+      .album-list { padding: 8px 0 24px; }
       .player-inner { padding: 10px 20px; }
     }
 
