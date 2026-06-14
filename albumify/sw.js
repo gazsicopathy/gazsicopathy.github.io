@@ -1,7 +1,7 @@
 // Albumify service worker — minimal, app-shell only.
 // Deliberately does NOT cache Spotify API or auth requests.
 
-const CACHE = 'albumify-v1';
+const CACHE = 'albumify-v2';
 const SHELL = [
   '/albumify/',
   '/albumify/index.html',
