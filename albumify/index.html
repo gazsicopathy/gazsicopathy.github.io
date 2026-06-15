@@ -168,7 +168,9 @@
     .progress-bar { flex: 1; height: 3px; background: var(--bg4); border-radius: 2px; cursor: pointer; }
     .progress-fill { height: 100%; background: var(--text3); border-radius: 2px; transition: width 0.5s linear; pointer-events: none; }
     .progress-bar:active .progress-fill { background: var(--green); }
-    .player-no-device { font-size: 12px; color: var(--text3); text-align: center; padding: 16px 8px; }
+    .player-no-device { font-size: 12px; color: var(--text3); text-align: center; padding: 12px 8px; width: 100%; }
+    .open-spotify-btn { background: var(--green); color: #000; font-size: 13px; font-weight: 700; padding: 8px 20px; border-radius: 20px; }
+    .open-spotify-btn:active { background: #1ed760; }
 
     /* ── Modal ── */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: flex-end; justify-content: center; z-index: 200; }
@@ -342,6 +344,7 @@ function App() {
   const [playback, setPlayback] = useState(null);
   const [localProgress, setLocalProgress] = useState(0);
   const progressTicker = useRef(null);
+  const wakeLock = useRef(null);
   const [devices, setDevices] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [expandedAlbumId, setExpandedAlbumId] = useState(null);
@@ -353,6 +356,8 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showImportExport, setShowImportExport] = useState(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [sorting, setSorting] = useState(false);
   const [importSearchQuery, setImportSearchQuery] = useState('');
   const [pendingImport, setPendingImport] = useState(null);
   const fileInputRef = useRef(null);
@@ -450,6 +455,48 @@ function App() {
     }
     return () => clearInterval(progressTicker.current);
   }, [playback]);
+
+  // Screen Wake Lock — keep the screen on while music is playing and
+  // Albumify is in the foreground. Releases automatically when paused,
+  // backgrounded, or the tab is hidden (browser-enforced).
+  useEffect(() => {
+    const isPlaying = playback && playback.item && playback.is_playing;
+
+    async function requestLock() {
+      if (!('wakeLock' in navigator)) return;
+      try {
+        if (!wakeLock.current) {
+          wakeLock.current = await navigator.wakeLock.request('screen');
+          wakeLock.current.addEventListener('release', () => { wakeLock.current = null; });
+        }
+      } catch (e) { /* lock may be refused if not visible — ignore */ }
+    }
+    function releaseLock() {
+      if (wakeLock.current) { wakeLock.current.release().catch(() => {}); wakeLock.current = null; }
+    }
+
+    if (isPlaying) requestLock(); else releaseLock();
+
+    // Re-acquire when the page becomes visible again (locks drop on hide)
+    function onVisible() {
+      if (document.visibilityState === 'visible' && playback && playback.item && playback.is_playing) {
+        requestLock();
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { document.removeEventListener('visibilitychange', onVisible); };
+  }, [playback]);
+
+  function openSpotify() {
+    // Opens the Spotify app/site to wake up an inactive device.
+    // This will bring Spotify to the foreground — Albumify keeps running
+    // in the background and reconnects on the next playback poll.
+    showToast('Opening Spotify — come back to Albumify after');
+    window.open('https://open.spotify.com', '_blank');
+    // Poll again shortly after, to pick up the reactivated device
+    setTimeout(fetchPlayback, 3000);
+    setTimeout(fetchPlayback, 6000);
+  }
 
   function getBestDeviceId() {
     if (!devices || !devices.length) return null;
@@ -704,7 +751,7 @@ function App() {
     const newPls = playlists.map(p => {
       if (p.id !== activeId) return p;
       if (p.albums.some(a => a.id === album.id)) { showToast('Already in playlist'); return p; }
-      updated = { ...p, albums: [...p.albums, { id: album.id, name: album.name, artists: album.artists, images: album.images, total_tracks: album.total_tracks }] };
+      updated = { ...p, albums: [...p.albums, { id: album.id, name: album.name, artists: album.artists, images: album.images, total_tracks: album.total_tracks, release_date: album.release_date }] };
       return updated;
     });
     persist(newPls);
@@ -722,6 +769,54 @@ function App() {
     });
     persist(newPls);
     if (updated) backgroundSync(updated);
+  }
+
+  // Ensure every album has a release_date, fetching any that are missing
+  async function ensureReleaseDates(albums) {
+    const missing = albums.filter(a => !a.release_date);
+    if (missing.length === 0) return albums;
+    const fetched = {};
+    const batchSize = 10;
+    for (let i = 0; i < missing.length; i += batchSize) {
+      const batch = missing.slice(i, i + batchSize);
+      await Promise.all(batch.map(async a => {
+        const data = await api('https://api.spotify.com/v1/albums/' + a.id + '?market=from_token').catch(() => null);
+        if (data && data.release_date) fetched[a.id] = data.release_date;
+      }));
+    }
+    return albums.map(a => a.release_date ? a : { ...a, release_date: fetched[a.id] || '' });
+  }
+
+  async function sortAlbums(mode) {
+    if (!activePl) return;
+    setShowSortMenu(false);
+    setSorting(true);
+    try {
+      let albums = activePl.albums;
+      if (mode === 'release_date' || mode === 'release_date_desc') {
+        albums = await ensureReleaseDates(albums);
+      }
+      const sorted = [...albums].sort((a, b) => {
+        if (mode === 'name') {
+          return a.name.localeCompare(b.name);
+        } else if (mode === 'artist') {
+          const aa = (a.artists?.[0]?.name || '').toLowerCase();
+          const bb = (b.artists?.[0]?.name || '').toLowerCase();
+          return aa.localeCompare(bb);
+        } else if (mode === 'release_date') {
+          return (a.release_date || '').localeCompare(b.release_date || '');
+        } else if (mode === 'release_date_desc') {
+          return (b.release_date || '').localeCompare(a.release_date || '');
+        }
+        return 0;
+      });
+      const updated = { ...activePl, albums: sorted };
+      persist(playlists.map(p => p.id !== activeId ? p : updated));
+      const labels = { name: 'album name', artist: 'artist', release_date: 'release date (oldest first)', release_date_desc: 'release date (newest first)' };
+      showToast('Sorted by ' + labels[mode]);
+      backgroundSync(updated);
+    } catch(e) { showToast('Sort failed — try again'); }
+    setSorting(false);
   }
 
   function shuffleAlbums() {
@@ -912,7 +1007,7 @@ function App() {
   async function importPlaylist(sp) {
     setImportLoading(true); setImportAlbums(null);
     let tracks = [];
-    let url = 'https://api.spotify.com/v1/playlists/' + sp.id + '/tracks?limit=50&fields=next,items(track(album(id,name,artists,images,total_tracks)))';
+    let url = 'https://api.spotify.com/v1/playlists/' + sp.id + '/tracks?limit=50&fields=next,items(track(album(id,name,artists,images,total_tracks,release_date)))';
     while (url) {
       const data = await api(url);
       (data?.items || []).forEach(i => { if (i.track?.album) tracks.push(i.track.album); });
@@ -1124,6 +1219,7 @@ function App() {
           ),
           h('div', { className: 'topbar-actions' },
             h('button', { className: 'action-btn icon-only', title: 'Import from Spotify', onClick: openImport }, '↓'),
+            pl && h('button', { className: 'action-btn icon-only', title: 'Sort albums', onClick: () => setShowSortMenu(true), disabled: sorting || !pl.albums.length }, sorting ? '…' : '⇅'),
             pl && h('button', { className: 'action-btn icon-only', title: 'Shuffle albums', onClick: shuffleAlbums }, '⇄'),
             pl && h('button', { className: 'action-btn primary', onClick: syncToSpotify, disabled: syncing || !pl.albums.length },
               syncing ? '…' : (pl.spotifyPlId ? 'Update' : 'Sync')
@@ -1300,7 +1396,10 @@ function App() {
                   )
                 )
               )
-            : h('div', { className: 'player-no-device' }, 'Open Spotify on any device to enable controls')
+            : h('div', { className: 'player-no-device' },
+                h('span', { style: { display: 'block', marginBottom: '8px' } }, 'No active Spotify device'),
+                h('button', { className: 'open-spotify-btn', onClick: openSpotify }, '▶  Open Spotify to connect')
+              )
       )
     ),
 
@@ -1374,6 +1473,35 @@ function App() {
       )
     ),
 
+    // Sort menu modal
+    showSortMenu && h('div', { className: 'modal-overlay', onClick: e => e.target === e.currentTarget && setShowSortMenu(false) },
+      h('div', { className: 'modal' },
+        h('h2', {}, 'Sort albums'),
+        h('p', { style: { fontSize: '13px', color: 'var(--text2)', marginBottom: '16px' } },
+          'This will permanently reorder the albums in this playlist.'
+        ),
+        h('button', { className: 'import-option-btn', onClick: () => sortAlbums('release_date') },
+          h('div', { className: 'import-option-title' }, 'Release date — oldest first'),
+          h('div', { className: 'import-option-desc' }, 'Earliest releases at the top')
+        ),
+        h('button', { className: 'import-option-btn', onClick: () => sortAlbums('release_date_desc') },
+          h('div', { className: 'import-option-title' }, 'Release date — newest first'),
+          h('div', { className: 'import-option-desc' }, 'Most recent releases at the top')
+        ),
+        h('button', { className: 'import-option-btn', onClick: () => sortAlbums('name') },
+          h('div', { className: 'import-option-title' }, 'Album name (A–Z)'),
+          h('div', { className: 'import-option-desc' }, 'Alphabetical by album title')
+        ),
+        h('button', { className: 'import-option-btn', onClick: () => sortAlbums('artist') },
+          h('div', { className: 'import-option-title' }, 'Artist (A–Z)'),
+          h('div', { className: 'import-option-desc' }, 'Alphabetical by artist name')
+        ),
+        h('div', { className: 'modal-actions', style: { marginTop: '8px' } },
+          h('button', { className: 'action-btn', onClick: () => setShowSortMenu(false) }, 'Cancel')
+        )
+      )
+    ),
+
     // Import options modal
     showImportExport && pendingImport && h('div', { className: 'modal-overlay', onClick: e => e.target === e.currentTarget && (setShowImportExport(false), setPendingImport(null)) },
       h('div', { className: 'modal' },
@@ -1422,7 +1550,9 @@ function App() {
           h('ul', {},
             h('li', {}, 'Albumify controls whichever Spotify device is currently active — make sure Spotify is open on your phone or computer first'),
             h('li', {}, 'When you play an album, Albumify syncs your playlist to Spotify behind the scenes so albums advance automatically when one finishes'),
-            h('li', {}, 'Use the player bar at the bottom to play/pause, skip tracks, or jump between albums with the ⏮ ⏭ buttons')
+            h('li', {}, 'Use the player bar at the bottom to play/pause, skip tracks, or jump between albums with the ⏮ ⏭ buttons'),
+            h('li', {}, 'If no active device is found, tap Open Spotify to connect — this wakes Spotify, then switch back to Albumify'),
+            h('li', {}, 'The screen stays awake while music plays and Albumify is open in the foreground')
           )
         ),
 
@@ -1433,6 +1563,7 @@ function App() {
           h('ul', {},
             h('li', {}, 'Drag the ⠿ handle to reorder albums'),
             h('li', {}, 'Shuffle randomises the album order'),
+            h('li', {}, 'Sort reorders albums by release date, name, or artist'),
             h('li', {}, 'Sync to Spotify creates a real Spotify playlist from your album playlist — useful for sharing or playing outside Albumify'),
             h('li', {}, 'Once synced, the button changes to Update and keeps the Spotify playlist in sync automatically')
           )
