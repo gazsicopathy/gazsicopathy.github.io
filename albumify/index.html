@@ -548,7 +548,9 @@ function App() {
   }
 
   // Play an album within the full playlist context.
-  // If playlist is already synced, skip straight to the album — no resync needed.
+  // Always ensures the Spotify playlist matches the current album order
+  // before playing, then anchors playback to the album's first track by URI
+  // so it lands correctly even if a background sync is still in flight.
   async function playAlbumInContext(albumId, pl) {
     if (!pl || !user) return;
     suppressPoll.current = true;
@@ -557,14 +559,26 @@ function App() {
     try {
       const allTracks = await fetchAllTracks(pl);
       let plId = pl.spotifyPlId;
-      if (!plId) plId = await pushToSpotify(pl, allTracks);
-      // Seek directly to first track of album — no resync required
-      const offset = allTracks.findIndex(t => t.albumId === albumId);
+      if (!plId) {
+        // No linked playlist yet — create it (writes tracks in current order)
+        plId = await pushToSpotify(pl, allTracks);
+      } else {
+        // Ensure Spotify reflects the current order before we play,
+        // so position/URI offsets resolve against the right tracks.
+        await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+          method: 'PUT', body: JSON.stringify({ uris: allTracks.slice(0,100).map(t=>t.uri) })
+        });
+        for (let i = 100; i < allTracks.length; i += 100) {
+          await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+            method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
+          });
+        }
+      }
+      // Anchor to the album's first track by URI (order-independent)
+      const firstTrack = allTracks.find(t => t.albumId === albumId);
       const deviceId = getBestDeviceId();
-      const body = {
-        context_uri: 'spotify:playlist:' + plId,
-        offset: { position: offset >= 0 ? offset : 0 }
-      };
+      const body = { context_uri: 'spotify:playlist:' + plId };
+      if (firstTrack) body.offset = { uri: firstTrack.uri };
       if (deviceId) body.device_id = deviceId;
       const tok = await getToken();
       await fetch('https://api.spotify.com/v1/me/player/play' + (deviceId ? '?device_id=' + deviceId : ''), {
@@ -655,10 +669,22 @@ function App() {
     try {
       const allTracks = await fetchAllTracks(activePl);
       let plId = activePl.spotifyPlId;
-      if (!plId) plId = await pushToSpotify(activePl, allTracks);
-      const offset = allTracks.findIndex(t => t.uri === trackUri);
+      if (!plId) {
+        plId = await pushToSpotify(activePl, allTracks);
+      } else {
+        // Ensure Spotify reflects current order before playing
+        await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+          method: 'PUT', body: JSON.stringify({ uris: allTracks.slice(0,100).map(t=>t.uri) })
+        });
+        for (let i = 100; i < allTracks.length; i += 100) {
+          await api('https://api.spotify.com/v1/playlists/' + plId + '/tracks', {
+            method: 'POST', body: JSON.stringify({ uris: allTracks.slice(i,i+100).map(t=>t.uri) })
+          });
+        }
+      }
       const deviceId = getBestDeviceId();
-      const body = { context_uri: 'spotify:playlist:' + plId, offset: { position: offset >= 0 ? offset : 0 } };
+      // Anchor by track URI — order-independent
+      const body = { context_uri: 'spotify:playlist:' + plId, offset: { uri: trackUri } };
       if (deviceId) body.device_id = deviceId;
       const tok = await getToken();
       await fetch('https://api.spotify.com/v1/me/player/play' + (deviceId ? '?device_id=' + deviceId : ''), {
